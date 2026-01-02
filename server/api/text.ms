@@ -1,0 +1,24 @@
+// {
+//   "fullname": "Mohamed Abdel Fattah",
+//   "username": "mohamed123",
+//   "email": "mohamed@example.com",
+//   "Password": "Abcd1234",
+//   "age": 19,
+//   "Phone": "01234536789",
+//   "country": "Egypt",
+//   "city": "Cairo",
+//   "role": "user"
+// }
+
+
+// {
+//     "message": "Login successful",
+//     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NTgyNDMyMjE2MTZjNzI2YTIyNzgzZCIsInJvbGUiOiJVc2VyIiwiaWF0IjoxNzY3Mzg0MTY0LCJleHAiOjE3Njc5ODg5NjR9.U9lWjCZQLjzoC1F1E-FqeSrNL3dcD7uPrL_BdZwz-AI",
+//     "user": {
+//         "id": "6958243221616c726a22783d",
+//         "fullname": "Mohamed Abdel Fattah",
+//         "username": "mohamed123",
+//         "email": "mohamed@example.com",
+//         "role": "User"
+//     }
+// }
