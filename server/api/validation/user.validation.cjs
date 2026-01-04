@@ -12,6 +12,14 @@ const passwordSchema = z
 exports.registerSchema = z.object({
   fullname: z.string().min(3, "Full name is too short"),
   username: z.string().min(3, "Username is too short"),
+  age: z.number().min(13, "You must be at least 13 years old"),
+  country: z.string().optional(),
+  city: z.string().optional(),
+  address: z.string().optional(),
+  profileImg: z.string().optional(),
+  coverImg: z.string().optional(),
+  bio: z.string().optional(),
+  link: z.string().url().optional(),
   email: z.string().email("Invalid email format"),
   Password: passwordSchema,
   Phone: z

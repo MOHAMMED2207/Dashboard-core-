@@ -1,11 +1,11 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const UserModel = require("../Model/Auth.cjs");
+const UserModel = require("../../Model/Auth+User/Auth.cjs");
 const {
   registerSchema,
   loginSchema,
-} = require("../validation/user.validation.cjs");
-const AppError = require("../utils/AppError.cjs");
+} = require("../../validation/user.validation.cjs");
+const AppError = require("../../utils/AppError.cjs");
 
 exports.register = async (req, res, next) => {
   try {

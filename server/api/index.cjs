@@ -7,10 +7,15 @@ const cors = require("cors");
 const { v2: cloudinary } = require("cloudinary");
 const errorHandler = require("./middlewares/errorHandler.cjs");
 
+// / Import Routes
+const AuthRouter = require("./Routes/Auth+User/Auth.cjs");
+const UserRouter = require("./Routes/Auth+User/UserAccount.cjs");
 
-const AuthRouter = require("./Routes/Auth.cjs");
-const UserRouter = require("./Routes/UserAccount.cjs");
+const CompanyRouter = require("./Routes/All Business/Company.cjs");
+const DashboardRouter = require("./Routes/Dashboard/Dashboard.cjs");
+const AnalyticsRouter = require("./Routes/All Business/Analytics.cjs");
 // const notificationRoutes = require("./Routes/Notification.cjs");
+// const dashboardRoutes = require("./Routes/Dashboard.cjs");
 
 // تهيئة إعدادات البيئة
 dotenv.config();
@@ -31,11 +36,7 @@ app.use(bodyParser.json({ limit: "1gb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:3001",
-];
+const allowedOrigins = ["http://localhost:3000", "http://localhost:3001"];
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -50,10 +51,14 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// إعداد المسارات (routes)
-app.use("/api", AuthRouter); // Auth
-app.use("/api", UserRouter); // User
-// app.use("/api/notifications", notificationRoutes);
+// API Routes
+app.use("/api", AuthRouter); // Authentication routes
+app.use("/api", UserRouter); // User routes
+app.use("/api/companies", CompanyRouter); // Company routes
+app.use("/api/dashboards", DashboardRouter); // Dashboard routes
+app.use("/api/analytics", AnalyticsRouter); // Analytics routes
+// app.use("/api/reports", ReportRouter); // Report routes
+// app.use("/api/notifications", NotificationRouter); // Notification routes
 
 // الاتصال بقاعدة البيانات
 const URL = process.env.MONGOO_URL;

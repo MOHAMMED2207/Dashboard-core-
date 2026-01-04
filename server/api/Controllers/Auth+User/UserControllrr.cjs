@@ -1,8 +1,8 @@
-const UserModel = require("../Model/Auth.cjs");
+const UserModel = require("../../Model/Auth+User/Auth.cjs");
 const bcrypt = require("bcrypt");
 const { v2: cloudinary } = require("cloudinary");
-const AppError = require("../utils/AppError.cjs");
-const { updateUserSchema } = require("../validation/user.validation.cjs");
+const AppError = require("../../utils/AppError.cjs");
+const { updateUserSchema } = require("../../validation/user.validation.cjs");
 
 // Get user profile
 exports.getUserProfile = async (req, res, next) => {

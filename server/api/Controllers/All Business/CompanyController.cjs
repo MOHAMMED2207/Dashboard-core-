@@ -1,0 +1,385 @@
+// server/api/Controllers/CompanyController.cjs
+const Company = require("../../Model/All Business/Company.cjs");
+const User = require("../../Model/Auth+User/Auth.cjs");
+const ActivityLog = require("../../Model/All Business/ActivityLog.cjs");
+const AppError = require("../../utils/AppError.cjs");
+
+const Dashboard = require("../../Model/Dashboard/Dashboard.cjs");
+const Report = require("../../Model/Report.cjs");
+const Analytics = require("../../Model/All Business/Analytics.cjs");
+const { v2: cloudinary } = require("cloudinary");
+
+// Create Company
+exports.createCompany = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { name, industry, size, email, website, country, city, phone } =
+      req.body;
+
+    // Check if user already owns a company
+    const existingCompany = await Company.findOne({ owner: userId });
+    if (existingCompany) {
+      return next(
+        new AppError("You already own a company. Please contact support.", 400)
+      );
+    }
+
+    // Check if email is already used
+    const emailExists = await Company.findOne({ email });
+    if (emailExists) {
+      return next(new AppError("Company email already registered", 400));
+    }
+
+    // Create company
+    const company = await Company.create({
+      name,
+      industry,
+      size,
+      email,
+      website,
+      country,
+      city,
+      phone,
+      owner: userId,
+      members: [
+        {
+          userId,
+          role: "owner",
+          permissions: ["*"], // Full permissions
+        },
+      ],
+    });
+
+    // Log activity
+    await ActivityLog.log({
+      companyId: company._id,
+      userId,
+      action: "company.create",
+      category: "company",
+      details: {
+        resource: "company",
+        resourceId: company._id,
+        description: `Created company: ${name}`,
+      },
+    });
+
+    res.status(201).json({
+      message: "Company created successfully",
+      company,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get Company Details
+exports.getCompany = async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+    const userId = req.user.id;
+
+    const company = await Company.findById(companyId).populate(
+      "members.userId",
+      "username fullname email ProfileImg"
+    );
+
+    if (!company) {
+      return next(new AppError("Company not found", 404));
+    }
+
+    // Check if user is a member
+    const accessMebmer = company.members.some((member) => ({
+      userId: member.userId._id.toString() === userId,
+    }));
+
+    if (!accessMebmer) {
+      return next(new AppError("You don't have access to this company", 403));
+    }
+
+    res.status(200).json(company);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update Company
+exports.updateCompany = async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+    const userId = req.user.id;
+    const updates = req.body;
+
+    const company = await Company.findById(companyId);
+
+    if (!company) {
+      return next(new AppError("Company not found", 404));
+    }
+
+    // Check if user is owner or admin
+    const userRole = company.getUserRole(userId);
+    if (!["owner", "admin"].includes(userRole)) {
+      return next(
+        new AppError("Only owners and admins can update company", 403)
+      );
+    }
+
+    // Handle logo upload
+    if (updates.logo) {
+      try {
+        if (company.logo) {
+          const publicId = company.logo.split("/").pop().split(".")[0];
+          await cloudinary.uploader.destroy(publicId);
+        }
+        const upload = await cloudinary.uploader.upload(updates.logo);
+        company.logo = upload.secure_url;
+      } catch (error) {
+        console.error("Logo upload failed:", error);
+      }
+    }
+
+    // Update allowed fields
+    const allowedFields = [
+      "name",
+      "industry",
+      "size",
+      "website",
+      "country",
+      "city",
+      "address",
+      "phone",
+      "settings",
+    ];
+
+    allowedFields.forEach((field) => {
+      if (updates[field] !== undefined) {
+        company[field] = updates[field];
+      }
+    });
+
+    await company.save();
+
+    // Log activity
+    await ActivityLog.log({
+      companyId: company._id,
+      userId,
+      action: "company.update",
+      category: "company",
+      details: {
+        resource: "company",
+        resourceId: company._id,
+        description: "Updated company information",
+      },
+    });
+
+    res.status(200).json({
+      message: "Company updated successfully",
+      company,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Add Member to Company ✅
+exports.addMember = async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+    const { email, role, permissions } = req.body;
+    const userId = req.user.id;
+
+    const company = await Company.findById(companyId);
+
+    if (!company) {
+      return next(new AppError("Company not found", 404));
+    }
+
+    // Check if user is owner or admin
+    const userRole = company.getUserRole(userId);
+    if (!["owner", "admin"].includes(userRole)) {
+      return next(new AppError("Only owners and admins can add members", 403));
+    }
+
+    // Find user by email
+    const newMember = await User.findOne({ email });
+
+    if (!newMember) {
+      return next(new AppError("User not found with this email", 404));
+    }
+
+    // Check if user is a member
+    const accessMebmer = company.members.some((member) => ({
+      userId: member.userId._id.toString() === userId,
+    }));
+    // Check if already a member
+    if (!accessMebmer) {
+      return next(new AppError("User is already a member", 400));
+    }
+
+    // Add member
+    company.members.push({
+      userId: newMember._id,
+      username: newMember.username,
+      email: newMember.email,
+      role: role || "employee",
+      permissions: permissions || [],
+    });
+
+    await company.save();
+
+    // Log activity
+    await ActivityLog.log({
+      companyId: company._id,
+      userId,
+      action: "company.member.add",
+      category: "company",
+      details: {
+        resource: "member",
+        resourceId: newMember._id,
+        description: `Added ${newMember.username} as ${role}`,
+      },
+    });
+
+    res.status(200).json({
+      message: "Member added successfully",
+      member: {
+        userId: newMember._id,
+        username: newMember.username,
+        email: newMember.email,
+        role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Remove Member from Company
+exports.removeMember = async (req, res, next) => {
+  try {
+    const { companyId, memberId } = req.params;
+    const userId = req.user.id;
+
+    const company = await Company.findById(companyId);
+
+    if (!company) {
+      return next(new AppError("Company not found", 404));
+    }
+
+    // Check if user is owner or admin
+    const userRole = company.getUserRole(userId);
+    if (!["owner", "admin"].includes(userRole)) {
+      return next(
+        new AppError("Only owners and admins can remove members", 403)
+      );
+    }
+
+    // Can't remove owner
+    const memberToRemove = company.members.find(
+      (m) => m.userId.toString() === memberId
+    );
+    if (memberToRemove && memberToRemove.role === "owner") {
+      return next(new AppError("Cannot remove company owner", 400));
+    }
+
+    // Remove member
+    company.members = company.members.filter(
+      (m) => m.userId.toString() !== memberId
+    );
+
+    await company.save();
+
+    // Log activity
+    await ActivityLog.log({
+      companyId: company._id,
+      userId,
+      action: "company.member.remove",
+      category: "company",
+      details: {
+        resource: "member",
+        resourceId: memberId,
+        description: "Removed member from company",
+      },
+    });
+
+    res.status(200).json({
+      message: "Member removed successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get Company Statistics
+exports.getStatistics = async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+    const userId = req.user.id;
+
+    const company = await Company.findById(companyId);
+
+    if (!company) {
+      return next(new AppError("Company not found", 404));
+    }
+
+    if (!company.isMember(userId)) {
+      return next(new AppError("Access denied", 403));
+    }
+
+    const [dashboardCount, reportCount, analyticsCount, recentActivity] =
+      await Promise.all([
+        Dashboard.countDocuments({ companyId }),
+        Report.countDocuments({ companyId, status: "completed" }),
+        Analytics.countDocuments({ companyId, status: "completed" }),
+        ActivityLog.getRecent(companyId, 10),
+      ]);
+
+    res.status(200).json({
+      statistics: {
+        ...company.statistics,
+        dashboards: dashboardCount,
+        reports: reportCount,
+        analytics: analyticsCount,
+        members: company.members.length,
+      },
+      recentActivity,
+      subscription: {
+        plan: company.subscription,
+        isActive: company.isSubscriptionActive,
+        expiresAt: company.subscriptionExpiry,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get User Companies
+exports.getUserCompanies = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    const companies = await Company.find({
+      "members.userId": userId,
+    })
+      .select("name logo industry size subscription members statistics")
+      .lean();
+
+    // Add user role for each company
+    const companiesWithRole = companies.map((company) => {
+      const member = company.members.find(
+        (m) => m.userId.toString() === userId
+      );
+      return {
+        ...company,
+        userRole: member ? member.role : null,
+      };
+    });
+
+    res.status(200).json({
+      companies: companiesWithRole,
+      count: companies.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
