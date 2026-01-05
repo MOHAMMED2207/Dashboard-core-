@@ -9,15 +9,21 @@ const Report = require("../../Model/Report.cjs");
 const Analytics = require("../../Model/All Business/Analytics.cjs");
 const { v2: cloudinary } = require("cloudinary");
 
-// Create Company
+// Create Company ✅
 exports.createCompany = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { name, industry, size, email, website, country, city, phone } =
       req.body;
 
+    const newUser = await User.findById(userId);
+
+    if (!newUser) {
+      return next(new AppError("User not found", 404));
+    }
+
     // Check if user already owns a company
-    const existingCompany = await Company.findOne({ owner: userId });
+    const existingCompany = await Company.findOne({ owner: newUser._id });
     if (existingCompany) {
       return next(
         new AppError("You already own a company. Please contact support.", 400)
@@ -40,10 +46,12 @@ exports.createCompany = async (req, res, next) => {
       country,
       city,
       phone,
-      owner: userId,
+      owner: newUser._id,
       members: [
         {
-          userId,
+          userId: newUser._id,
+          username: newUser.username,
+          email: newUser.email,
           role: "owner",
           permissions: ["*"], // Full permissions
         },
@@ -72,7 +80,7 @@ exports.createCompany = async (req, res, next) => {
   }
 };
 
-// Get Company Details
+// Get Company Details ✅
 exports.getCompany = async (req, res, next) => {
   try {
     const { companyId } = req.params;
@@ -87,12 +95,7 @@ exports.getCompany = async (req, res, next) => {
       return next(new AppError("Company not found", 404));
     }
 
-    // Check if user is a member
-    const accessMebmer = company.members.some((member) => ({
-      userId: member.userId._id.toString() === userId,
-    }));
-
-    if (!accessMebmer) {
+    if (!company.isMember(userId)) {
       return next(new AppError("You don't have access to this company", 403));
     }
 
@@ -102,7 +105,7 @@ exports.getCompany = async (req, res, next) => {
   }
 };
 
-// Update Company
+// Update Company ✅
 exports.updateCompany = async (req, res, next) => {
   try {
     const { companyId } = req.params;
@@ -123,7 +126,7 @@ exports.updateCompany = async (req, res, next) => {
       );
     }
 
-    // Handle logo upload
+    // Handle logo upload // cloudinary
     if (updates.logo) {
       try {
         if (company.logo) {
@@ -138,6 +141,16 @@ exports.updateCompany = async (req, res, next) => {
     }
 
     // Update allowed fields
+
+    // Example of updates object:{
+    //   "owner": "id تاني",
+    //   "subscription": "enterprise"
+    // }
+    // ❌ خطر جدًا
+
+    //     الحل؟
+    // انت بتقول:
+    // أنا أسمح بتعديل الحقول دي بس
     const allowedFields = [
       "name",
       "industry",
@@ -187,31 +200,27 @@ exports.addMember = async (req, res, next) => {
     const { email, role, permissions } = req.body;
     const userId = req.user.id;
 
+    // Find company // التحقق من وجود الشركة
     const company = await Company.findById(companyId);
-
     if (!company) {
       return next(new AppError("Company not found", 404));
     }
 
-    // Check if user is owner or admin
+    // Check if user is owner or admin // التحقق من صلاحيات المستخدم
     const userRole = company.getUserRole(userId);
     if (!["owner", "admin"].includes(userRole)) {
       return next(new AppError("Only owners and admins can add members", 403));
     }
 
-    // Find user by email
+    // Find user by email // التحقق من وجود المستخدم
     const newMember = await User.findOne({ email });
-
+    //check if user exists
     if (!newMember) {
       return next(new AppError("User not found with this email", 404));
     }
 
-    // Check if user is a member
-    const accessMebmer = company.members.some((member) => ({
-      userId: member.userId._id.toString() === userId,
-    }));
     // Check if already a member
-    if (!accessMebmer) {
+    if (!company.isMember(newMember._id)) {
       return next(new AppError("User is already a member", 400));
     }
 
@@ -253,19 +262,19 @@ exports.addMember = async (req, res, next) => {
   }
 };
 
-// Remove Member from Company
+// Remove Member from Company ✅
 exports.removeMember = async (req, res, next) => {
   try {
     const { companyId, memberId } = req.params;
     const userId = req.user.id;
 
+    // Find company // التحقق من وجود الشركة
     const company = await Company.findById(companyId);
-
     if (!company) {
       return next(new AppError("Company not found", 404));
     }
 
-    // Check if user is owner or admin
+    // Check if user is owner or admin // التحقق من صلاحيات المستخدم
     const userRole = company.getUserRole(userId);
     if (!["owner", "admin"].includes(userRole)) {
       return next(
@@ -277,11 +286,12 @@ exports.removeMember = async (req, res, next) => {
     const memberToRemove = company.members.find(
       (m) => m.userId.toString() === memberId
     );
+    // Check if member exists // التحقق من وجود العضو // لا يمكن إزالة المالك
     if (memberToRemove && memberToRemove.role === "owner") {
       return next(new AppError("Cannot remove company owner", 400));
     }
 
-    // Remove member
+    // Remove member // إزالة العضو // حفظ التغييرات
     company.members = company.members.filter(
       (m) => m.userId.toString() !== memberId
     );
@@ -309,7 +319,7 @@ exports.removeMember = async (req, res, next) => {
   }
 };
 
-// Get Company Statistics
+// Get Company Statistics ✅
 exports.getStatistics = async (req, res, next) => {
   try {
     const { companyId } = req.params;
@@ -327,9 +337,11 @@ exports.getStatistics = async (req, res, next) => {
 
     const [dashboardCount, reportCount, analyticsCount, recentActivity] =
       await Promise.all([
+        // عدد الداشبوردات والتقارير والتحليلات المكتملة
         Dashboard.countDocuments({ companyId }),
         Report.countDocuments({ companyId, status: "completed" }),
         Analytics.countDocuments({ companyId, status: "completed" }),
+        // اخر 10 أنشطة في الشركة
         ActivityLog.getRecent(companyId, 10),
       ]);
 
@@ -353,7 +365,7 @@ exports.getStatistics = async (req, res, next) => {
   }
 };
 
-// Get User Companies
+// Get User Companies ✅
 exports.getUserCompanies = async (req, res, next) => {
   try {
     const userId = req.user.id;

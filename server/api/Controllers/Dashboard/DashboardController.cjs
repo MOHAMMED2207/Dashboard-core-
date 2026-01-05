@@ -4,7 +4,7 @@ const Company = require("../../Model/All Business/Company.cjs");
 const ActivityLog = require("../../Model/All Business/ActivityLog.cjs");
 const AppError = require("./../../utils/AppError.cjs");
 
-// Create Dashboard
+// Create Dashboard ✅
 exports.createDashboard = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -14,6 +14,16 @@ exports.createDashboard = async (req, res, next) => {
     const company = await Company.findById(companyId);
     if (!company || !company.isMember(userId)) {
       return next(new AppError("Access denied", 403));
+    }
+
+    // Check dashboard creation limit
+    if (!(await company.canCreateDashboard())) {
+      return next(
+        new AppError(
+          "Dashboard limit reached for free plan. Upgrade your plan to create more dashboards.",
+          403
+        )
+      );
     }
 
     // Create dashboard
@@ -42,7 +52,7 @@ exports.createDashboard = async (req, res, next) => {
 
     res.status(201).json({
       message: "Dashboard created successfully",
-      dashboard,
+      // dashboard,
     });
   } catch (error) {
     next(error);

@@ -1,4 +1,5 @@
 // server/api/Model/Company.cjs
+const Dashboard = require("./../../Model/Dashboard/Dashboard.cjs");
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
@@ -11,6 +12,7 @@ const CompanySchema = new Schema(
     },
     industry: {
       type: String,
+      // this is a predefined list of industries
       enum: [
         "Technology",
         "Healthcare",
@@ -28,6 +30,7 @@ const CompanySchema = new Schema(
       enum: ["1-10", "11-50", "51-200", "201-500", "501-1000", "1000+"],
       required: true,
     },
+
     subscription: {
       type: String,
       enum: ["free", "pro", "enterprise"],
@@ -71,6 +74,7 @@ const CompanySchema = new Schema(
         autoReports: { type: Boolean, default: false },
       },
     },
+    // payment and billing info
     billing: {
       plan: String,
       amount: Number,
@@ -143,6 +147,27 @@ CompanySchema.methods.getUserRole = function (userId) {
     (m) => m.userId.toString() === userId.toString()
   );
   return member ? member.role : null;
+};
+
+// Method to check if company can create more dashboards based on subscription
+const DASHBOARD_LIMITS = {
+  free: 5,
+  pro: 50,
+  enterprise: Infinity,
+};
+
+// Check if company can create more dashboards
+CompanySchema.methods.canCreateDashboard = async function () {
+  if (!this.isSubscriptionActive) return false;
+
+  const limit = DASHBOARD_LIMITS[this.subscription] ?? 0;
+  if (limit === Infinity) return true;
+
+  const count = await Dashboard.countDocuments({
+    companyId: this._id,
+  });
+
+  return count < limit;
 };
 
 module.exports = mongoose.model("Company", CompanySchema);
