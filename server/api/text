@@ -11,11 +11,10 @@
 // }
 
 // {
-  
+
 //   "email": "mohamed@example.com",
 //   "Password": "Abcd1234"
-  
-// }
+
 
 
 // {
@@ -29,3 +28,14 @@
 //         "role": "User"
 //     }
 // }
+
+
+
+// Login Tokens:
+// [
+    // mohamed
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NTgyNDMyMjE2MTZjNzI2YTIyNzgzZCIsInJvbGUiOiJVc2VyIiwiaWF0IjoxNzY3Mzg0MTY0LCJleHAiOjE3Njc5ODg5NjR9.U9lWjCZQLjzoC1F1E-FqeSrNL3dcD7uPrL_BdZwz-AI
+    // -------------------------------------------   
+    // khaled
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NTgzYjhjZjc0MDAyNjZjM2UzMzMxMyIsInJvbGUiOiJVc2VyIiwiaWF0IjoxNzY3NDcyNzQyLCJleHAiOjE3NjgwNzc1NDJ9.eZNdHLb21m1fT8vkPnNx6lJrKEEUVf9cTWF6UuCdCUk
+// ]

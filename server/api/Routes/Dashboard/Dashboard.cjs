@@ -11,8 +11,8 @@ router.use(authMiddleware);
 // Dashboard CRUD
 router.post("/", DashboardController.createDashboard);
 router.get("/", DashboardController.getUserDashboards);
-router.get("/templates", DashboardController.getTemplates);
 router.get("/:dashboardId", DashboardController.getDashboard);
+router.get("/templates", DashboardController.getTemplates);
 router.put("/:dashboardId", DashboardController.updateDashboard);
 router.delete("/:dashboardId", DashboardController.deleteDashboard);
 

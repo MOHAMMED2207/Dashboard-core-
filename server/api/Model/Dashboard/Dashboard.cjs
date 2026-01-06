@@ -172,4 +172,21 @@ DashboardSchema.methods.updateWidget = function (widgetId, updates) {
   return Promise.resolve(this);
 };
 
+// method to check user permissions for a edit or delete
+DashboardSchema.methods.CanDoIt = function (userId, task) {
+  if (!userId || !task) return false;
+
+  const isOwner = this.userId.toString() === userId;
+  
+  const sharedUser = this.sharedWith.find(
+    (s) => s.userId.toString() === userId
+  );
+  const sharedUserCanEdit = sharedUser && sharedUser.permission === "edit";
+
+  if (task === "edit") {
+    return isOwner || sharedUserCanEdit;
+  }
+  return false;
+};
+
 module.exports = mongoose.model("Dashboard", DashboardSchema);

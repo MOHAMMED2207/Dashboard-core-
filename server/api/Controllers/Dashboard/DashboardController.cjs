@@ -59,18 +59,27 @@ exports.createDashboard = async (req, res, next) => {
   }
 };
 
-// Get User Dashboards
+/// Get User Dashboards ✅ // عرض الداشبوردات الخاصة بالمستخدم
 exports.getUserDashboards = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { companyId } = req.query;
 
     const query = { userId };
+    // إرجاع كل الـ Dashboards اللي:
+    // المستخدم هو المالك الأصلي، أو // تم مشاركتها معاه
     if (companyId) query.companyId = companyId;
-
-    const dashboards = await Dashboard.find(query)
+    const dashboards = await Dashboard.find({
+      $or: [{ userId }, { "sharedWith.userId": userId }],
+    })
       .sort({ isDefault: -1, lastViewedAt: -1 })
-      .lean();
+      .lean()
+      .skip(0)
+      .limit(100);
+    // sort by isDefault first, then by lastViewedAt
+    // lean for performance
+    // skip 0 // work on pagination later
+    // limit to 100 dashboards // no pagination for now
 
     res.status(200).json({
       dashboards,
@@ -81,7 +90,7 @@ exports.getUserDashboards = async (req, res, next) => {
   }
 };
 
-// Get Dashboard by ID
+// Get Dashboard by ID ✅
 exports.getDashboard = async (req, res, next) => {
   try {
     const { dashboardId } = req.params;
@@ -100,7 +109,7 @@ exports.getDashboard = async (req, res, next) => {
       dashboard.sharedWith.some((s) => s.userId.toString() === userId);
 
     if (!hasAccess) {
-      return next(new AppError("Access denied", 403));
+      return next(new AppError("Your not have access to this dashboard", 403));
     }
 
     // Update view count and last viewed
@@ -127,7 +136,7 @@ exports.getDashboard = async (req, res, next) => {
   }
 };
 
-// Update Dashboard
+// Update Dashboard ✅
 exports.updateDashboard = async (req, res, next) => {
   try {
     const { dashboardId } = req.params;
@@ -141,13 +150,7 @@ exports.updateDashboard = async (req, res, next) => {
     }
 
     // Check if user can edit
-    const canEdit =
-      dashboard.userId.toString() === userId ||
-      dashboard.sharedWith.some(
-        (s) => s.userId.toString() === userId && s.permission === "edit"
-      );
-
-    if (!canEdit) {
+    if (!dashboard.CanDoIt(userId, "edit")) {
       return next(new AppError("You don't have edit permission", 403));
     }
 
@@ -245,13 +248,7 @@ exports.addWidget = async (req, res, next) => {
     }
 
     // Check edit permission
-    const canEdit =
-      dashboard.userId.toString() === userId ||
-      dashboard.sharedWith.some(
-        (s) => s.userId.toString() === userId && s.permission === "edit"
-      );
-
-    if (!canEdit) {
+    if (!(await dashboard.CanDoIt(userId, "edit"))) {
       return next(new AppError("Edit permission required", 403));
     }
 
@@ -385,7 +382,7 @@ exports.removeWidget = async (req, res, next) => {
   }
 };
 
-// Share Dashboard
+// Share Dashboard ✅
 exports.shareDashboard = async (req, res, next) => {
   try {
     const { dashboardId } = req.params;
