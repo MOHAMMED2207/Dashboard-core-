@@ -4,7 +4,7 @@ const Company = require("../../Model/All Business/Company.cjs");
 const ActivityLog = require("../../Model/All Business/ActivityLog.cjs");
 const AppError = require("./../../utils/AppError.cjs");
 
-// Create Dashboard ✅
+// Create New Dashboard ✅
 exports.createDashboard = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -59,7 +59,7 @@ exports.createDashboard = async (req, res, next) => {
   }
 };
 
-/// Get User Dashboards ✅ // عرض الداشبوردات الخاصة بالمستخدم
+// Get All User Dashboards ✅
 exports.getUserDashboards = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -136,7 +136,7 @@ exports.getDashboard = async (req, res, next) => {
   }
 };
 
-// Update Dashboard ✅
+// Update Dashboard 
 exports.updateDashboard = async (req, res, next) => {
   try {
     const { dashboardId } = req.params;
@@ -194,7 +194,7 @@ exports.updateDashboard = async (req, res, next) => {
   }
 };
 
-// Delete Dashboard
+// Delete Dashboard ✅
 exports.deleteDashboard = async (req, res, next) => {
   try {
     const { dashboardId } = req.params;
@@ -211,6 +211,7 @@ exports.deleteDashboard = async (req, res, next) => {
       return next(new AppError("Only owner can delete dashboard", 403));
     }
 
+    // Delete dashboard
     await dashboard.deleteOne();
 
     // Log activity
@@ -234,7 +235,7 @@ exports.deleteDashboard = async (req, res, next) => {
   }
 };
 
-// Add Widget to Dashboard
+// Add Widget to Dashboard ✅
 exports.addWidget = async (req, res, next) => {
   try {
     const { dashboardId } = req.params;
@@ -247,12 +248,12 @@ exports.addWidget = async (req, res, next) => {
       return next(new AppError("Dashboard not found", 404));
     }
 
-    // Check edit permission
+    // Check edit permission // add widget requires edit permission
     if (!(await dashboard.CanDoIt(userId, "edit"))) {
-      return next(new AppError("Edit permission required", 403));
+      return next(new AppError("you don't have edit permission", 403));
     }
 
-    // Generate widget ID if not provided
+    // Generate widget ID if not provide // توليد id فريد للودجت
     if (!widget.id) {
       widget.id = `widget-${Date.now()}-${Math.random()
         .toString(36)
@@ -285,7 +286,7 @@ exports.addWidget = async (req, res, next) => {
   }
 };
 
-// Update Widget
+// Update Widget ✅
 exports.updateWidget = async (req, res, next) => {
   try {
     const { dashboardId, widgetId } = req.params;
@@ -298,18 +299,12 @@ exports.updateWidget = async (req, res, next) => {
       return next(new AppError("Dashboard not found", 404));
     }
 
-    // Check edit permission
-    const canEdit =
-      dashboard.userId.toString() === userId ||
-      dashboard.sharedWith.some(
-        (s) => s.userId.toString() === userId && s.permission === "edit"
-      );
-
-    if (!canEdit) {
-      return next(new AppError("Edit permission required", 403));
+    // Check edit permission // update widget requires edit permission
+    if (!(await dashboard.CanDoIt(userId, "edit"))) {
+      return next(new AppError("you don't have edit permission", 403));
     }
 
-    // Update widget
+    // Update widget // تحديث الودجت
     await dashboard.updateWidget(widgetId, updates);
 
     // Log activity
@@ -334,7 +329,7 @@ exports.updateWidget = async (req, res, next) => {
   }
 };
 
-// Remove Widget
+// Remove Widget from Dashboard ✅
 exports.removeWidget = async (req, res, next) => {
   try {
     const { dashboardId, widgetId } = req.params;
@@ -346,15 +341,9 @@ exports.removeWidget = async (req, res, next) => {
       return next(new AppError("Dashboard not found", 404));
     }
 
-    // Check edit permission
-    const canEdit =
-      dashboard.userId.toString() === userId ||
-      dashboard.sharedWith.some(
-        (s) => s.userId.toString() === userId && s.permission === "edit"
-      );
-
-    if (!canEdit) {
-      return next(new AppError("Edit permission required", 403));
+    // Check edit permission // remove widget requires edit permission
+    if (!(await dashboard.CanDoIt(userId, "edit"))) {
+      return next(new AppError("you don't have edit permission", 403));
     }
 
     // Remove widget
@@ -382,7 +371,7 @@ exports.removeWidget = async (req, res, next) => {
   }
 };
 
-// Share Dashboard ✅
+// Share Dashboard with Users ✅
 exports.shareDashboard = async (req, res, next) => {
   try {
     const { dashboardId } = req.params;
@@ -423,16 +412,19 @@ exports.shareDashboard = async (req, res, next) => {
   }
 };
 
-// Get Dashboard Templates
+// Get Dashboard Templates ✅ // use query { category = optional } 
 exports.getTemplates = async (req, res, next) => {
+  // query { category = optional } // تصفية حسب الفئة
   try {
     const { category } = req.query;
 
-    const query = { isTemplate: true };
-    if (category) query.category = category;
+    const query = { isTemplate: true }; // جلب القوالب فقط
+    if (category) query.category = category; // تصفية حسب الفئة إذا تم توفيرها
 
+    // get templates with selected fields only for performance
     const templates = await Dashboard.find(query)
       .select("name description category widgets preview")
+      .sort({ createdAt: -1 })
       .lean();
 
     res.status(200).json({
@@ -444,7 +436,7 @@ exports.getTemplates = async (req, res, next) => {
   }
 };
 
-// Clone Dashboard from Template
+// create new (clone) of existing dashboard ✅
 exports.cloneDashboard = async (req, res, next) => {
   try {
     const { dashboardId } = req.params;

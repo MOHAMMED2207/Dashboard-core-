@@ -150,19 +150,19 @@ DashboardSchema.index({ companyId: 1, isDefault: 1 });
 DashboardSchema.index({ "sharedWith.userId": 1 });
 DashboardSchema.index({ isTemplate: 1 });
 
-// Method to add widget
+// Method to add widget to dashboard ✅
 DashboardSchema.methods.addWidget = function (widget) {
   this.widgets.push(widget);
   return this.save();
 };
 
-// Method to remove widget
+// Method to remove widget from dashboard ✅
 DashboardSchema.methods.removeWidget = function (widgetId) {
   this.widgets = this.widgets.filter((w) => w.id !== widgetId);
   return this.save();
 };
 
-// Method to update widget
+// Method to update widget in dashboard ✅
 DashboardSchema.methods.updateWidget = function (widgetId, updates) {
   const widget = this.widgets.find((w) => w.id === widgetId);
   if (widget) {
@@ -172,7 +172,7 @@ DashboardSchema.methods.updateWidget = function (widgetId, updates) {
   return Promise.resolve(this);
 };
 
-// method to check user permissions for a edit or delete
+// method to check user permissions for a edit or delete task ✅
 DashboardSchema.methods.CanDoIt = function (userId, task) {
   if (!userId || !task) return false;
 

@@ -129,19 +129,19 @@ CompanySchema.index({ email: 1 });
 CompanySchema.index({ "members.userId": 1 });
 CompanySchema.index({ createdAt: -1 });
 
-// Virtual for checking subscription status
+// check if subscription is active or not ✅
 CompanySchema.virtual("isSubscriptionActive").get(function () {
   return this.subscriptionExpiry > new Date();
 });
 
-// Method to check if user is member
+// Method to check if user is member of company ✅
 CompanySchema.methods.isMember = function (userId) {
   return this.members.some((member) => ({
     userId: member.userId._id.toString() === userId,
   }));
 };
 
-// Method to get user role in company
+// Method to get user role in company ✅
 CompanySchema.methods.getUserRole = function (userId) {
   const member = this.members.find(
     (m) => m.userId.toString() === userId.toString()
@@ -149,14 +149,14 @@ CompanySchema.methods.getUserRole = function (userId) {
   return member ? member.role : null;
 };
 
-// Method to check if company can create more dashboards based on subscription
+// Method to check if company can create more dashboards based on subscription plan ✅
 const DASHBOARD_LIMITS = {
   free: 5,
   pro: 50,
   enterprise: Infinity,
 };
 
-// Check if company can create more dashboards
+// Method to check if company can create more dashboards based on subscription plan  ✅
 CompanySchema.methods.canCreateDashboard = async function () {
   if (!this.isSubscriptionActive) return false;
 

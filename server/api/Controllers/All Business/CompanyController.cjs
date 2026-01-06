@@ -365,7 +365,7 @@ exports.getStatistics = async (req, res, next) => {
   }
 };
 
-// Get User Companies ✅
+// Get User's Companies ✅
 exports.getUserCompanies = async (req, res, next) => {
   try {
     const userId = req.user.id;

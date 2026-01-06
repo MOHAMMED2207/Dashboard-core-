@@ -9,16 +9,16 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // Company CRUD
-router.post("/", CompanyController.createCompany);
-router.get("/my-companies", CompanyController.getUserCompanies);
-router.get("/:companyId", CompanyController.getCompany);
-router.put("/:companyId", CompanyController.updateCompany);
+router.post("/", CompanyController.createCompany); // create company ✅
+router.get("/my-companies", CompanyController.getUserCompanies); // get all user's companies ✅
+router.get("/:companyId", CompanyController.getCompany); // get single company by (Id) ✅
+router.put("/:companyId", CompanyController.updateCompany); // update company by (Id) ✅
 
 // Company Members
-router.post("/:companyId/members", CompanyController.addMember);
-router.delete("/:companyId/members/:memberId", CompanyController.removeMember);
+router.post("/:companyId/members", CompanyController.addMember); // add member to company ✅
+router.delete("/:companyId/members/:memberId", CompanyController.removeMember); // remove member from company ✅
 
 // Company Statistics
-router.get("/:companyId/statistics", CompanyController.getStatistics);
+router.get("/:companyId/statistics", CompanyController.getStatistics); // get company statistics ✅
 
 module.exports = router;
