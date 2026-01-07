@@ -2,6 +2,62 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
+/**
+ * Enum for Activity Categories
+ */
+const ACTIVITY_CATEGORIES = {
+  AUTH: "authentication",
+  USER: "user",
+  COMPANY: "company",
+  DASHBOARD: "dashboard",
+  REPORT: "report",
+  ANALYTICS: "analytics",
+  SETTINGS: "settings",
+  SECURITY: "security",
+  SYSTEM: "system",
+};
+
+/**
+ * Enum for Activity Actions
+ */
+const ACTIVITY_ACTIONS = {
+  // User actions
+  USER_LOGIN: "user.login",
+  USER_LOGOUT: "user.logout",
+  USER_REGISTER: "user.register",
+  USER_UPDATE: "user.update",
+  USER_DELETE: "user.delete",
+  // Company actions
+  COMPANY_CREATE: "company.create",
+  COMPANY_UPDATE: "company.update",
+  COMPANY_DELETE: "company.delete",
+  COMPANY_MEMBER_ADD: "company.member.add",
+  COMPANY_MEMBER_REMOVE: "company.member.remove",
+  // Dashboard actions
+  DASHBOARD_CREATE: "dashboard.create",
+  DASHBOARD_UPDATE: "dashboard.update",
+  DASHBOARD_DELETE: "dashboard.delete",
+  DASHBOARD_VIEW: "dashboard.view",
+  WIDGET_ADD: "widget.add",
+  WIDGET_UPDATE: "widget.update",
+  WIDGET_REMOVE: "widget.remove",
+  // Report actions
+  REPORT_CREATE: "report.create",
+  REPORT_UPDATE: "report.update",
+  REPORT_DELETE: "report.delete",
+  REPORT_VIEW: "report.view",
+  REPORT_DOWNLOAD: "report.download",
+  REPORT_SHARE: "report.share",
+  // Analytics actions
+  ANALYTICS_VIEW: "analytics.view",
+  ANALYTICS_EXPORT: "analytics.export",
+  // Settings actions
+  SETTINGS_UPDATE: "settings.update",
+  SETTINGS_VIEW: "settings.view",
+  // Other
+  CUSTOM: "custom",
+};
+
 const ActivityLogSchema = new Schema(
   {
     companyId: {
@@ -16,60 +72,16 @@ const ActivityLogSchema = new Schema(
       required: true,
       index: true,
     },
+    // action: إيه اللي حصل
     action: {
       type: String,
-      enum: [
-        // User actions
-        "user.login",
-        "user.logout",
-        "user.register",
-        "user.update",
-        "user.delete",
-        // Company actions
-        "company.create",
-        "company.update",
-        "company.delete",
-        "company.member.add",
-        "company.member.remove",
-        // Dashboard actions
-        "dashboard.create",
-        "dashboard.update",
-        "dashboard.delete",
-        "dashboard.view",
-        "widget.add",
-        "widget.update",
-        "widget.remove",
-        // Report actions
-        "report.create",
-        "report.update",
-        "report.delete",
-        "report.view",
-        "report.download",
-        "report.share",
-        // Analytics actions
-        "analytics.view",
-        "analytics.export",
-        // Settings actions
-        "settings.update",
-        "settings.view",
-        // Other
-        "custom",
-      ],
+      enum: Object.values(ACTIVITY_ACTIONS),
       required: true,
     },
+    // category: حصل في أنهي جزء من السيستم
     category: {
       type: String,
-      enum: [
-        "authentication",
-        "user",
-        "company",
-        "dashboard",
-        "report",
-        "analytics",
-        "settings",
-        "security",
-        "system",
-      ],
+      enum: Object.values(ACTIVITY_CATEGORIES),
       required: true,
     },
     details: {
@@ -91,7 +103,7 @@ const ActivityLogSchema = new Schema(
     ipAddress: String,
     userAgent: String,
     device: {
-      type: String,
+      deviceType: String, // Renamed from 'type' to avoid confusion with Mongoose 'type' keyword
       browser: String,
       os: String,
     },
@@ -117,7 +129,7 @@ const ActivityLogSchema = new Schema(
   { timestamps: true }
 );
 
-// Compound indexes
+// Compound indexes for optimized querying
 ActivityLogSchema.index({ companyId: 1, createdAt: -1 });
 ActivityLogSchema.index({ userId: 1, createdAt: -1 });
 ActivityLogSchema.index({ action: 1, createdAt: -1 });
@@ -131,8 +143,7 @@ ActivityLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 }); // 9
 ActivityLogSchema.statics.log = async function (data) {
   try {
     const log = new this(data);
-    await log.save();
-    return log;
+    return await log.save();
   } catch (error) {
     console.error("Failed to log activity:", error);
     return null;
@@ -155,10 +166,7 @@ ActivityLogSchema.statics.getRecent = async function (
 };
 
 // Static method to get user activity
-ActivityLogSchema.statics.getUserActivity = async function (
-  userId,
-  days = 30
-) {
+ActivityLogSchema.statics.getUserActivity = async function (userId, days = 30) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
@@ -178,7 +186,7 @@ ActivityLogSchema.statics.getStats = async function (companyId, days = 30) {
   const stats = await this.aggregate([
     {
       $match: {
-        companyId: mongoose.Types.ObjectId(companyId),
+        companyId: new mongoose.Types.ObjectId(companyId),
         createdAt: { $gte: startDate },
       },
     },
@@ -199,4 +207,10 @@ ActivityLogSchema.statics.getStats = async function (companyId, days = 30) {
   return stats;
 };
 
-module.exports = mongoose.model("ActivityLog", ActivityLogSchema);
+
+
+const ActivityLog = mongoose.model("ActivityLog", ActivityLogSchema);
+ActivityLog.CATEGORIES = ACTIVITY_CATEGORIES;
+ActivityLog.ACTIONS = ACTIVITY_ACTIONS;
+
+module.exports = ActivityLog;

@@ -6,48 +6,129 @@ const {
   loginSchema,
 } = require("../../validation/user.validation.cjs");
 const AppError = require("../../utils/AppError.cjs");
+const ActivityLog = require("../../Model/All Business/ActivityLog.cjs");
+const Company = require("../../Model/All Business/Company.cjs");
 
 exports.register = async (req, res, next) => {
   try {
-    // 1️⃣ Zod validation
+    // 1️⃣ Validate input
     const data = registerSchema.parse(req.body);
 
-    // 2️⃣ Check if email, username, or phone already exists
-    const exists = await UserModel.findOne({
+    // 2️⃣ Check for duplicates
+    const existingUser = await UserModel.findOne({
       $or: [
         { email: data.email },
         { username: data.username },
         { Phone: data.Phone },
       ],
     });
-    // duplicate check
-    if (exists) {
-      if (exists.email === data.email)
+
+    if (existingUser) {
+      if (existingUser.email === data.email)
         return next(new AppError("Email already exists", 400));
-
-      if (exists.username === data.username)
+      if (existingUser.username === data.username)
         return next(new AppError("Username already exists", 400));
-
-      if (exists.Phone === data.Phone)
+      if (existingUser.Phone === data.Phone)
         return next(new AppError("Phone already exists", 400));
     }
 
-    // 3️⃣ Hash password
-    const hashedPassword = await bcrypt.hash(data.Password, 10);
+    // 3️⃣ Hash the user's password
+    const hashedPassword = await bcrypt.hash(data.Password, 12);
 
-    // 4️⃣ Create user
+    // 4️⃣ Create the user first
     const user = await UserModel.create({
       ...data,
       Password: hashedPassword,
+      role: "employee",
+      isActive: true,
+      joinedAt: new Date(),
     });
 
+    // 5️⃣ Find existing company
+    let company = await Company.findOne({ email: data.companyEmail });
+
+    let isNewCompany = false;
+
+    if (!company) {
+      isNewCompany = true;
+      company = await Company.create({
+        name: data.companyName || data.companyEmail.split("@")[0],
+        email: data.companyEmail,
+        members: [],
+        industry: "Other",
+        size: "1-10",
+        subscription: "free",
+        isActive: true,
+        statistics: {},
+        settings: {},
+        owner: user._id,
+      });
+
+      // سجل إنشاء الشركة في ActivityLog
+      await ActivityLog.log({
+        companyId: company._id,
+        userId: user._id,
+        action: "company.create",
+        category: "company",
+        details: {
+          resource: "company",
+          resourceId: company._id,
+          description: `Created company: ${company.name} by ${user.email}`,
+        },
+      });
+    }
+
+    // 7️⃣ Add user to company members
+    company.members.push({
+      userId: user._id,
+      role: company.owner.equals(user._id) ? "owner" : "employee",
+      joinedAt: new Date(),
+    });
+
+    await company.save();
+
+    // 8️⃣ Update user's companyId
+    user.companyId = company._id;
+    await user.save();
+
+    // 9️⃣ Activity logs
+    await ActivityLog.log({
+      companyId: company._id,
+      userId: user._id,
+      action: "user.register",
+      category: "authentication",
+      details: {
+        resource: "user",
+        resourceId: user._id,
+        description: `User ${user.email} registered and joined company ${company.name}`,
+      },
+    });
+
+    await ActivityLog.log({
+      companyId: company._id,
+      userId: user._id,
+      action: "company.member.add",
+      category: "company",
+      details: {
+        resource: "company",
+        resourceId: company._id,
+        description: `User ${user.email} added to company as member`,
+      },
+    });
+
+    const message = isNewCompany
+      ? `User registered successfully and created new company: ${company.name}`
+      : "User registered successfully";
+
     res.status(201).json({
-      message: "User registered successfully",
+      message: message,
       user: {
         id: user._id,
         fullname: user.fullname,
         username: user.username,
         email: user.email,
+        company: company.name,
+        role: company.owner.equals(user._id) ? "owner" : "employee",
       },
     });
   } catch (error) {
@@ -55,7 +136,6 @@ exports.register = async (req, res, next) => {
   }
 };
 
-// --------------------------------------------------------------------------------------------------------
 exports.login = async (req, res, next) => {
   try {
     const data = loginSchema.parse(req.body);
@@ -73,6 +153,32 @@ exports.login = async (req, res, next) => {
       { expiresIn: "7d" }
     );
 
+    const company = await Company.findOne({ "members.userId": user._id });
+
+    const companyId = company ? company._id : null; // company.id // user found in members company
+    const UserIsOwner = company.owner === user._id ? true : false;
+
+    //
+    if (!companyId && !UserIsOwner) {
+      return next(new AppError("user dont have any company", 404));
+    }
+
+    // 🔥 Activity Log
+    await ActivityLog.log({
+      companyId: companyId,
+      userId: user._id,
+      action: "user.login",
+      category: "authentication",
+      result: "success",
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+      details: {
+        resource: "auth",
+        description: "User logged in successfully",
+      },
+      severity: "low",
+    });
+
     res.status(200).json({
       message: "Login successful",
       token,
@@ -83,6 +189,13 @@ exports.login = async (req, res, next) => {
         email: user.email,
         role: user.role,
       },
+      company: {
+        name: company.name,
+        email: company.email,
+        subscription: company.subscription,
+        members: company.members,
+      },
+      count: company.length,
     });
   } catch (error) {
     next(error);
@@ -91,6 +204,29 @@ exports.login = async (req, res, next) => {
 
 exports.logout = async (req, res) => {
   try {
+    const userId = req.user.id;
+
+    const user = await UserModel.findById(userId);
+    if (!user) throw new AppError("Invalid credentials", 400);
+
+    const company = await Company.findOne({ "members.userId": userId._id });
+    const companyId = company ? company._id : null; // company.id // user found in members company
+
+    await ActivityLog.log({
+      companyId: companyId,
+      userId: user._id,
+      action: "user.logout",
+      category: "authentication",
+      result: "success",
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+      details: {
+        resource: "auth",
+        description: "User Logged out successfully",
+      },
+      severity: "low",
+    });
+
     res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     console.log("Error in logout controller", error.message);

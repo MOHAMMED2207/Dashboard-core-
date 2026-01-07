@@ -12,7 +12,7 @@ const passwordSchema = z
 exports.registerSchema = z.object({
   fullname: z.string().min(3, "Full name is too short"),
   username: z.string().min(3, "Username is too short"),
-  age: z.number().min(13, "You must be at least 13 years old"),
+  age: z.number().min(13, "You must be at least 13 years old").optional(),
   country: z.string().optional(),
   city: z.string().optional(),
   address: z.string().optional(),
@@ -22,10 +22,10 @@ exports.registerSchema = z.object({
   link: z.string().url().optional(),
   email: z.string().email("Invalid email format"),
   Password: passwordSchema,
-  Phone: z
-    .string()
-    .min(11, "Invalid phone number")
-    .max(11, "Invalid phone number"),
+  Phone: z.string().min(11, "Invalid phone number").max(11, "Invalid phone number"),
+  companyEmail: z.string().email("Invalid email format"),
+  companyName: z.string().min(2, "Company name is too short"),
+  role: z.enum(["owner","admin","manager","employee","viewer"]).default("employee")
 });
 
 // login schema
@@ -33,12 +33,6 @@ exports.loginSchema = z.object({
   email: z.string().email("Invalid email format"),
   Password: passwordSchema,
 });
-
-
-
-
-
-
 
 exports.resetPasswordSchema = z.object({
   email: z.string().email(),

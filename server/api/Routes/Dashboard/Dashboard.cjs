@@ -20,6 +20,8 @@ router.post("/:dashboardId/share", DashboardController.shareDashboard); // share
 router.post("/:dashboardId/clone", DashboardController.cloneDashboard); // create new (clone) of existing dashboard ✅
 
 // Widget Management
+
+router.get("/:dashboardId/widgets", DashboardController.getWidgets); // add widget to dashboard ✅
 router.post("/:dashboardId/widgets", DashboardController.addWidget); // add widget to dashboard ✅
 router.put("/:dashboardId/widgets/:widgetId", DashboardController.updateWidget); // update widget in dashboard ✅
 router.delete(

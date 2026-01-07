@@ -173,19 +173,23 @@ DashboardSchema.methods.updateWidget = function (widgetId, updates) {
 };
 
 // method to check user permissions for a edit or delete task ✅
-DashboardSchema.methods.CanDoIt = function (userId, task) {
-  if (!userId || !task) return false;
+DashboardSchema.methods.canDo = function (userId, action) {
+  if (!userId || !action) return false;
 
   const isOwner = this.userId.toString() === userId;
-  
+
   const sharedUser = this.sharedWith.find(
     (s) => s.userId.toString() === userId
   );
-  const sharedUserCanEdit = sharedUser && sharedUser.permission === "edit";
 
-  if (task === "edit") {
-    return isOwner || sharedUserCanEdit;
+  if (action === "view") {
+    return isOwner || !!sharedUser;
   }
+
+  if (action === "edit" || action === "delete") {
+    return isOwner || sharedUser?.permission === "edit";
+  }
+
   return false;
 };
 

@@ -8,7 +8,7 @@ const router = express.Router();
 router.post("/auth/register", AuthController.register); // ✅
 router.post("/auth/login", AuthController.login); // ✅
 
-router.post("/auth/logout", AuthController.logout); // ✅
+router.post("/auth/logout",authMiddleware, AuthController.logout); // ✅
 
 // PRIVATE ROUTES
 router.get("/auth/me", authMiddleware, AuthController.getMe); // ✅

@@ -136,7 +136,7 @@ exports.getDashboard = async (req, res, next) => {
   }
 };
 
-// Update Dashboard 
+// Update Dashboard
 exports.updateDashboard = async (req, res, next) => {
   try {
     const { dashboardId } = req.params;
@@ -150,7 +150,7 @@ exports.updateDashboard = async (req, res, next) => {
     }
 
     // Check if user can edit
-    if (!dashboard.CanDoIt(userId, "edit")) {
+    if (!dashboard.canDo(userId, "edit")) {
       return next(new AppError("You don't have edit permission", 403));
     }
 
@@ -235,7 +235,7 @@ exports.deleteDashboard = async (req, res, next) => {
   }
 };
 
-// Add Widget to Dashboard ✅
+// Add Widget to Dashboard
 exports.addWidget = async (req, res, next) => {
   try {
     const { dashboardId } = req.params;
@@ -249,7 +249,7 @@ exports.addWidget = async (req, res, next) => {
     }
 
     // Check edit permission // add widget requires edit permission
-    if (!(await dashboard.CanDoIt(userId, "edit"))) {
+    if (!(await dashboard.canDo(userId, "edit"))) {
       return next(new AppError("you don't have edit permission", 403));
     }
 
@@ -286,6 +286,33 @@ exports.addWidget = async (req, res, next) => {
   }
 };
 
+// get all Widgets ✅
+exports.getWidgets = async (req, res, next) => {
+  try {
+    const { dashboardId } = req.params;
+    const userId = req.user.id;
+
+    const dashboard = await Dashboard.findById(dashboardId);
+
+    if (!dashboard) {
+      return next(new AppError("Dashboard not found", 404));
+    }
+
+    // Check edit permission // update widget requires edit permission
+    if (!(await dashboard.canDo(userId, "view"))) {
+      return next(new AppError("you don't have edit permission", 403));
+    }
+
+    res.status(200).json({
+      name: dashboard.name,
+      widget: dashboard.widgets || [],
+      count: dashboard.widgets.length || 0,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Update Widget ✅
 exports.updateWidget = async (req, res, next) => {
   try {
@@ -300,7 +327,7 @@ exports.updateWidget = async (req, res, next) => {
     }
 
     // Check edit permission // update widget requires edit permission
-    if (!(await dashboard.CanDoIt(userId, "edit"))) {
+    if (!(await dashboard.canDo(userId, "edit"))) {
       return next(new AppError("you don't have edit permission", 403));
     }
 
@@ -342,7 +369,7 @@ exports.removeWidget = async (req, res, next) => {
     }
 
     // Check edit permission // remove widget requires edit permission
-    if (!(await dashboard.CanDoIt(userId, "edit"))) {
+    if (!(await dashboard.canDo(userId, "edit"))) {
       return next(new AppError("you don't have edit permission", 403));
     }
 
@@ -412,7 +439,7 @@ exports.shareDashboard = async (req, res, next) => {
   }
 };
 
-// Get Dashboard Templates ✅ // use query { category = optional } 
+// Get Dashboard Templates ✅ // use query { category = optional }
 exports.getTemplates = async (req, res, next) => {
   // query { category = optional } // تصفية حسب الفئة
   try {
