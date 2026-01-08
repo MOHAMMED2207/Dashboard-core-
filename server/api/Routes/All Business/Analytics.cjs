@@ -11,15 +11,15 @@ router.use(authMiddleware);
 // ⚠️ IMPORTANT: More specific routes MUST come before generic routes
 
 // Overview & KPIs (specific routes first)
-router.get("/:companyId/overview", AnalyticsController.getOverview);
-router.get("/:companyId/kpis", AnalyticsController.getKPIs);
-router.get("/:companyId/summary", AnalyticsController.getAnalyticsSummary);
+router.get("/:companyId/overview", AnalyticsController.getOverview); // 👀
+router.get("/:companyId/kpis", AnalyticsController.getKPIs); // 👀
+router.get("/:companyId/summary", AnalyticsController.getAnalyticsSummary); // 👀
 
 // Insights (specific route)
-router.get("/:companyId/insights/all", AnalyticsController.getInsights);
+router.get("/:companyId/insights/all", AnalyticsController.getInsights); // 👀
 
 // Custom Analytics (POST before GET to avoid conflicts)
-router.post("/:companyId/custom", AnalyticsController.createCustomAnalytics);
+router.post("/:companyId/custom", AnalyticsController.createCustomAnalytics); // 👀
 
 // Comparison (must come before generic :type route)
 router.get(

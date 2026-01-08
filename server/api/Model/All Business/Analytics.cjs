@@ -13,11 +13,11 @@ const AnalyticsSchema = new Schema(
     type: {
       type: String,
       enum: [
-        "sales",
-        "revenue",
-        "users",
-        "traffic",
-        "conversion",
+        "sales", //عدد الطلبات
+        "revenue", // الفلوس
+        "users", // المستخدمين
+        "traffic", // الزيارات
+        "conversion", // مين الي زار => هل اشتري
         "performance",
         "engagement",
         "custom",
@@ -25,17 +25,20 @@ const AnalyticsSchema = new Schema(
       required: true,
       index: true,
     },
+    // ظظمستوى التجميع (Aggregation Level)
     category: {
       type: String,
       enum: ["daily", "weekly", "monthly", "quarterly", "yearly", "realtime"],
       required: true,
     },
+    // الفترة اللي البيانات اتحللت عليها
     period: {
       start: { type: Date, required: true },
       end: { type: Date, required: true },
     },
     data: {
       // Flexible data structure
+      // دي الأرقام العليا (KPIs)
       metrics: {
         total: Number,
         average: Number,
@@ -55,6 +58,7 @@ const AnalyticsSchema = new Schema(
           change: Number,
         },
       ],
+      // ده اللي بيرسم Charts // كل يوم وقيمته
       timeSeries: [
         {
           timestamp: Date,
@@ -70,6 +74,9 @@ const AnalyticsSchema = new Schema(
           percentage: Number,
         },
       ],
+      // مقارنة فترة بفترة
+      // الشهر ده vs اللي فات
+      //  “هل الأداء اتحسن ولا ساء؟”
       comparison: {
         previous: Number,
         current: Number,
@@ -77,6 +84,7 @@ const AnalyticsSchema = new Schema(
         differenceRate: Number,
       },
     },
+    // هنا بيعرفك المبياعات (قلت) و نسبتها اي (20%)
     insights: [
       {
         type: {
@@ -117,6 +125,7 @@ const AnalyticsSchema = new Schema(
         ],
       },
     ],
+    // المتوقع الشهر الجاي: 15k // confidence: 82%
     predictions: {
       nextPeriod: {
         value: Number,
@@ -138,6 +147,7 @@ const AnalyticsSchema = new Schema(
         },
       ],
     },
+    // فجأة المبيعات نزلت 70% في ساعة
     anomalies: [
       {
         timestamp: Date,

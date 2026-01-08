@@ -9,7 +9,7 @@ const AppError = require("../../utils/AppError.cjs");
 // ===================================
 
 /**
- * Verify user has access to company
+ * Verify user has access to company ✅
  */
 const verifyCompanyAccess = async (companyId, userId) => {
   const company = await Company.findById(companyId);
@@ -20,7 +20,7 @@ const verifyCompanyAccess = async (companyId, userId) => {
 };
 
 /**
- * Calculate date range based on days parameter
+ * Calculate date range based on days parameter ✅ Start Date | End Date
  */
 const calculateDateRange = (days) => {
   const endDate = new Date();
@@ -40,7 +40,7 @@ const fetchAnalyticsWithFallback = async (query, includeOld = "true") => {
     .sort({ createdAt: -1 })
     .lean();
 
-  // Fallback: get latest available data if nothing found in range
+  // Fallback: get latest available data if nothing found in range ✅
   if (!data && includeOld === "true") {
     const { "period.start": _, ...baseQuery } = query;
     data = await Analytics.findOne({
@@ -55,7 +55,7 @@ const fetchAnalyticsWithFallback = async (query, includeOld = "true") => {
 };
 
 /**
- * Format overview data from analytics result
+ * Format overview data from analytics result ✅ ملخص {summary}
  */
 const formatOverviewData = (analyticsResult, userId) => {
   if (!analyticsResult) return null;
@@ -74,7 +74,7 @@ const formatOverviewData = (analyticsResult, userId) => {
 };
 
 /**
- * Count insights (total and unviewed)
+ * Count insights (total and unviewed) => (Notifications🔔) ✅
  */
 const countInsights = (analyticsResults, userId) => {
   let totalInsights = 0;
@@ -102,8 +102,8 @@ const countInsights = (analyticsResults, userId) => {
 // ===================================
 
 /**
- * Get Analytics Overview
- * GET /api/analytics/:companyId/overview
+ * Get Analytics Overview ✅
+ * GET /api/analytics/:companyId/overview ✅
  */
 exports.getOverview = async (req, res, next) => {
   try {
@@ -111,7 +111,7 @@ exports.getOverview = async (req, res, next) => {
     const userId = req.user.id;
     const { days = 365, includeOld = "true" } = req.query;
 
-    // Verify access
+    // Verify access // 1- user is Member in this company // 2- found this company
     await verifyCompanyAccess(companyId, userId);
 
     // Calculate date range
@@ -127,7 +127,7 @@ exports.getOverview = async (req, res, next) => {
       "performance",
     ];
 
-    // Fetch all analytics in parallel
+    // Fetch all analytics in parallel // get data Analytics
     const analyticsPromises = analyticsTypes.map((type) =>
       fetchAnalyticsWithFallback(
         {
@@ -146,6 +146,20 @@ exports.getOverview = async (req, res, next) => {
     analyticsTypes.forEach((type, index) => {
       overview[type] = formatOverviewData(analyticsResults[index], userId);
     });
+
+    // { type === [ "sales", "revenue", "users", "traffic", "conversion", "performance",]
+    // overview[type]
+    //   overview{
+    //     | "sales": {
+    //     |            "current": 250000,
+    //     |            "change": 65000,
+    //     |            "changeRate": 0.35,
+    //     |            "trend": "stable",
+    //     |          },
+    //     | "revenue": {ويحط البيانات},
+    //     | "users":   {ويحط البيانات},
+    //     | "traffic": {ويحط البيانات},
+    // }
 
     // Count insights
     const { totalInsights, unviewedInsights } = countInsights(
@@ -174,8 +188,8 @@ exports.getOverview = async (req, res, next) => {
 };
 
 /**
- * Get Analytics by Specific Type
- * GET /api/analytics/:companyId/:type
+ * Get Analytics by Specific Type ✅
+ * GET /api/analytics/:companyId/:type ✅
  */
 exports.getAnalyticsByType = async (req, res, next) => {
   try {
@@ -296,8 +310,8 @@ exports.getAnalyticsByType = async (req, res, next) => {
 };
 
 /**
- * Get KPIs (Key Performance Indicators)
- * GET /api/analytics/:companyId/kpis
+ * Get KPIs (Key Performance Indicators) ✅
+ * GET /api/analytics/:companyId/kpis ✅
  */
 exports.getKPIs = async (req, res, next) => {
   try {
@@ -308,20 +322,22 @@ exports.getKPIs = async (req, res, next) => {
     await verifyCompanyAccess(companyId, userId);
 
     // Fetch latest analytics for each KPI type
-    const [sales, revenue, users, conversion] = await Promise.all([
-      Analytics.findOne({ companyId, type: "sales", status: "completed" })
-        .sort({ createdAt: -1 })
-        .lean(),
-      Analytics.findOne({ companyId, type: "revenue", status: "completed" })
-        .sort({ createdAt: -1 })
-        .lean(),
-      Analytics.findOne({ companyId, type: "users", status: "completed" })
-        .sort({ createdAt: -1 })
-        .lean(),
-      Analytics.findOne({ companyId, type: "conversion", status: "completed" })
-        .sort({ createdAt: -1 })
-        .lean(),
-    ]);
+    const analyticsTypes = ["sales", "revenue", "users", "conversion"];
+
+    const analyticsResults = await Promise.all(
+      analyticsTypes.map((type) =>
+        Analytics.findOne({
+          companyId,
+          type,
+          status: "completed",
+        })
+          .sort({ createdAt: -1 })
+          .lean()
+      )
+    );
+
+    // destructuring
+    const [sales, revenue, users, conversion] = analyticsResults;
 
     console.log("KPIs data availability:", {
       sales: !!sales,
@@ -396,9 +412,15 @@ exports.getKPIs = async (req, res, next) => {
 };
 
 /**
- * Get Analytics Summary
- * GET /api/analytics/:companyId/summary
- */
+ * Get Analytics Summary ✅
+ * GET /api/analytics/:companyId/summary ✅
+ * الخطوات التي تتم داخل الدالة:
+ * 1️⃣ استخراج الـ companyId من معلمات الـ URL.
+ * 2️⃣ استخراج الـ userId من التوكن (بعد التحقق من الـ Auth).
+ * 3️⃣ التحقق من أن المستخدم عضو في الشركة باستخدام `verifyCompanyAccess`.
+ * 4️⃣ تعريف أنواع الـ Analytics المطلوبة (مثل المبيعات، الإيرادات، المستخدمين، إلخ).
+ * 5️⃣ لكل نوع من أنواع الـ Analytics:
+ **/
 exports.getAnalyticsSummary = async (req, res, next) => {
   try {
     const { companyId } = req.params;
@@ -481,8 +503,8 @@ exports.getAnalyticsSummary = async (req, res, next) => {
 };
 
 /**
- * Get Insights
- * GET /api/analytics/:companyId/insights/all
+ * Get Insights ✅
+ * GET /api/analytics/:companyId/insights/all ✅
  */
 exports.getInsights = async (req, res, next) => {
   try {
@@ -515,11 +537,10 @@ exports.getInsights = async (req, res, next) => {
       });
     });
 
-    // Apply filters
-    if (priority) {
+    // Apply filters select between ["low", "medium", "high", "critical"]
+    // exempel (type) [ "sales", "revenue" ]
+    if (priority || type) {
       allInsights = allInsights.filter((i) => i.priority === priority);
-    }
-    if (type) {
       allInsights = allInsights.filter((i) => i.type === type);
     }
 
@@ -537,8 +558,7 @@ exports.getInsights = async (req, res, next) => {
 
     // Count unviewed insights
     const unviewedCount = allInsights.filter(
-      (i) =>
-        !i.viewedBy?.some((v) => v.userId.toString() === userId.toString())
+      (i) => !i.viewedBy?.some((v) => v.userId.toString() === userId.toString())
     ).length;
 
     res.status(200).json({
@@ -552,8 +572,8 @@ exports.getInsights = async (req, res, next) => {
 };
 
 /**
- * Create Custom Analytics
- * POST /api/analytics/:companyId/custom
+ * Create Custom Analytics ✅
+ * POST /api/analytics/:companyId/custom ✅
  */
 exports.createCustomAnalytics = async (req, res, next) => {
   try {
