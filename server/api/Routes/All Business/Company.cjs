@@ -1,24 +1,52 @@
-// server/api/Routes/Company.cjs
 const express = require("express");
 const CompanyController = require("../../Controllers/All Business/CompanyController.cjs");
 const authMiddleware = require("../../middlewares/authentication.cjs");
+const permission = require("../../middlewares/permissions.cjs");
 
 const router = express.Router();
 
-// All routes require authentication
+// كل الروتات تحتاج مصادقة
 router.use(authMiddleware);
 
-// Company CRUD
-router.post("/", CompanyController.createCompany); // create company ✅
-router.get("/my-companies", CompanyController.getUserCompanies); // get all user's companies ✅
-router.get("/:companyId", CompanyController.getCompany); // get single company by (Id) ✅
-router.put("/:companyId", CompanyController.updateCompany); // update company by (Id) ✅
+// إنشاء شركة ✅
+router.post("/", CompanyController.createCompany);
 
-// Company Members
-router.post("/:companyId/members", CompanyController.addMember); // add member to company ✅
-router.delete("/:companyId/members/:memberId", CompanyController.removeMember); // remove member from company ✅
+// الحصول على شركات المستخدم ✅
+router.get("/my-companies", CompanyController.getUserCompanies);
 
-// Company Statistics
-router.get("/:companyId/statistics", CompanyController.getStatistics); // get company statistics ✅
+// الحصول على شركة واحدة ✅
+router.get(
+  "/:companyId",
+  permission.hasPermission("company.read"), // تحقق من صلاحية قراءة الشركة
+  CompanyController.getCompany
+);
+
+// تحديث الشركة ✅
+router.put(
+  "/:companyId",
+  permission.isOwnerOrAdmin, // فقط Owner/Admin يستطيع التحديث
+  CompanyController.updateCompany
+);
+
+// إضافة عضو ✅
+router.post(
+  "/:companyId/members",
+  permission.isMember, // فقط Owner/Admin يستطيع الإضافة
+  CompanyController.addMember
+);
+
+// إزالة عضو ✅
+router.delete(
+  "/:companyId/members/:memberId",
+  permission.isOwnerOrAdmin, // فقط Owner/Admin يستطيع الإزالة
+  CompanyController.removeMember
+);
+
+// الحصول على إحصائيات الشركة ✅
+router.get(
+  "/:companyId/statistics",
+  permission.hasPermission("company.read"), // تحقق من صلاحية قراءة الشركة
+  CompanyController.getStatistics
+);
 
 module.exports = router;

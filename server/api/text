@@ -1,41 +1,36 @@
 // {
-//   "fullname": "Mohamed Abdel Fattah",
-//   "username": "mohamed123",
-//   "email": "mohamed@example.com",
-//   "Password": "Abcd1234",
-//   "age": 19,
-//   "Phone": "01234536789",
-//   "country": "Egypt",
-//   "city": "Cairo",
-//   "role": "user"
+//   "fullname": "User Example Test 2",
+//   "username": "shady22",
+//   "age": 20,
+//   "email": "example2@example.com",
+//   "Password": "Example2287",
+//   "Phone": "01501311480",
+//   "companyEmail": "Example@techsolutions.com",
+//   "companyName": "New company Example Test"
 // }
-
-// {
-
-//   "email": "mohamed@example.com",
-//   "Password": "Abcd1234"
-
-
 
 // {
 //     "message": "Login successful",
-//     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NTgyNDMyMjE2MTZjNzI2YTIyNzgzZCIsInJvbGUiOiJVc2VyIiwiaWF0IjoxNzY3Mzg0MTY0LCJleHAiOjE3Njc5ODg5NjR9.U9lWjCZQLjzoC1F1E-FqeSrNL3dcD7uPrL_BdZwz-AI",
+//     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NjE2MzQ0ODRlMmE4NjgwZmRlN2QyNyIsInJvbGUiOiJlbXBsb3llZSIsImlhdCI6MTc2Nzk5MDEwOSwiZXhwIjoxNzY4NTk0OTA5fQ.jvStwMSkvNf1XisBwFfLyzg4nifkdouigU736pT1ObM",
 //     "user": {
-//         "id": "6958243221616c726a22783d",
-//         "fullname": "Mohamed Abdel Fattah",
-//         "username": "mohamed123",
-//         "email": "mohamed@example.com",
-//         "role": "User"
+//         "id": "6961634484e2a8680fde7d27",
+//         "fullname": "User Example Test 2",
+//         "username": "shady22",
+//         "email": "example2@example.com",
+//         "role": "employee"
+//     },
+//     "company": {
+//         "name": "New company Example Test",
+//         "email": "Example@techsolutions.com",
+//         "subscription": "free",
+//         "members": [
+//             {
+//                 "userId": "6961634484e2a8680fde7d27",
+//                 "role": "owner",
+//                 "joinedAt": "2026-01-09T20:21:24.998Z",
+//                 "permissions": [],
+//                 "_id": "6961634584e2a8680fde7d2e"
+//             }
+//         ]
 //     }
 // }
-
-
-
-// Login Tokens:
-// [
-    // mohamed
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NTgyNDMyMjE2MTZjNzI2YTIyNzgzZCIsInJvbGUiOiJVc2VyIiwiaWF0IjoxNzY3Mzg0MTY0LCJleHAiOjE3Njc5ODg5NjR9.U9lWjCZQLjzoC1F1E-FqeSrNL3dcD7uPrL_BdZwz-AI
-    // -------------------------------------------   
-    // khaled
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NTgzYjhjZjc0MDAyNjZjM2UzMzMxMyIsInJvbGUiOiJVc2VyIiwiaWF0IjoxNzY3NDcyNzQyLCJleHAiOjE3NjgwNzc1NDJ9.eZNdHLb21m1fT8vkPnNx6lJrKEEUVf9cTWF6UuCdCUk
-// ]

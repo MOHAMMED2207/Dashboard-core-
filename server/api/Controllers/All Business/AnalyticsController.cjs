@@ -5,7 +5,7 @@ const ActivityLog = require("../../Model/All Business/ActivityLog.cjs");
 const AppError = require("../../utils/AppError.cjs");
 
 // ===================================
-// Helper Functions
+// Helper Functions ✅✅✅✅✅✅✅
 // ===================================
 
 /**
@@ -622,8 +622,8 @@ exports.createCustomAnalytics = async (req, res, next) => {
 };
 
 /**
- * Get Analytics Comparison
- * GET /api/analytics/:companyId/:type/comparison
+ * Get Analytics Comparison between (2) => date ✅
+ * GET /api/analytics/:companyId/:type/comparison ✅
  */
 exports.getComparison = async (req, res, next) => {
   try {
@@ -645,47 +645,47 @@ exports.getComparison = async (req, res, next) => {
     }
 
     // Fetch analytics for both periods
-    const [data1, data2] = await Promise.all([
-      Analytics.findOne({
-        companyId,
-        type,
-        status: "completed",
-        "period.start": { $gte: new Date(period1.start) },
-        "period.end": { $lte: new Date(period1.end) },
-      }).lean(),
-      Analytics.findOne({
-        companyId,
-        type,
-        status: "completed",
-        "period.start": { $gte: new Date(period2.start) },
-        "period.end": { $lte: new Date(period2.end) },
-      }).lean(),
-    ]);
 
-    if (!data1 || !data2) {
+    const data1Array = await Analytics.find({
+      companyId,
+      type,
+      status: "completed",
+      "period.start": { $lte: new Date(period1.end) },
+      "period.end": { $gte: new Date(period1.start) },
+    }).lean();
+
+    const data2Array = await Analytics.find({
+      companyId,
+      type,
+      status: "completed",
+      "period.start": { $lte: new Date(period2.end) },
+      "period.end": { $gte: new Date(period2.start) },
+      _id: { $nin: data1Array.map((d) => d._id) },
+    }).lean();
+
+    if (!data1Array || !data2Array) {
       return next(
         new AppError("Analytics data not found for one or both periods", 404)
       );
     }
 
     // Calculate comparison
-    const value1 = data1.data?.metrics?.total || 0;
-    const value2 = data2.data?.metrics?.total || 0;
-    const difference = value1 - value2;
+    // دالة لحساب مجموع الـ total من كل السجلات
+    const sumValue = (data) =>
+      data.reduce((sum, a) => sum + (a.data?.metrics?.total || 0), 0);
+
+    const value1 = sumValue(data1Array); // مجموع total لكل السجلات في period1
+    const value2 = sumValue(data2Array); // مجموع total لكل السجلات في period2
+
+    // The difference between the values ​​of the two analyses
+    // Increase or decrease
+    const difference = value2 - value1;
     const percentageChange = value2 !== 0 ? (difference / value2) * 100 : 0;
 
     res.status(200).json({
       comparison: {
-        period1: {
-          value: value1,
-          period: data1.period,
-          metrics: data1.data?.metrics,
-        },
-        period2: {
-          value: value2,
-          period: data2.period,
-          metrics: data2.data?.metrics,
-        },
+        period1: { value: value1, data: data1Array },
+        period2: { value: value2, data: data2Array },
         difference,
         percentageChange: Math.round(percentageChange * 100) / 100,
         trend: difference > 0 ? "up" : difference < 0 ? "down" : "stable",
@@ -697,8 +697,8 @@ exports.getComparison = async (req, res, next) => {
 };
 
 /**
- * Mark Insight as Viewed
- * PUT /api/analytics/:analyticsId/insights/:insightId/view
+ * Mark Insight as Viewed (تحليل_ai_) ✅
+ * PUT /api/analytics/:analyticsId/insights/:insightId/view ✅
  */
 exports.markInsightViewed = async (req, res, next) => {
   try {

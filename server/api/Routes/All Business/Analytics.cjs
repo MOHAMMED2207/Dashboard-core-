@@ -22,18 +22,15 @@ router.get("/:companyId/insights/all", AnalyticsController.getInsights); // 👀
 router.post("/:companyId/custom", AnalyticsController.createCustomAnalytics); // 👀
 
 // Comparison (must come before generic :type route)
-router.get(
-  "/:companyId/:type/comparison",
-  AnalyticsController.getComparison
-);
+router.get("/:companyId/:type/comparison", AnalyticsController.getComparison); // 👀
 
 // Mark Insight as Viewed
 router.put(
   "/:analyticsId/insights/:insightId/view",
   AnalyticsController.markInsightViewed
-);
+); // 👀
 
 // Generic Analytics by Type (MUST be last to avoid catching other routes)
-router.get("/:companyId/:type", AnalyticsController.getAnalyticsByType);
+router.get("/:companyId/:type", AnalyticsController.getAnalyticsByType); // 👀
 
 module.exports = router;

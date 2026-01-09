@@ -83,21 +83,10 @@ exports.createCompany = async (req, res, next) => {
 // Get Company Details ✅
 exports.getCompany = async (req, res, next) => {
   try {
-    const { companyId } = req.params;
-    const userId = req.user.id;
-
-    const company = await Company.findById(companyId).populate(
+    const company = await Company.findById(req.company._id).populate(
       "members.userId",
       "username fullname email ProfileImg"
     );
-
-    if (!company) {
-      return next(new AppError("Company not found", 404));
-    }
-
-    if (!company.isMember(userId)) {
-      return next(new AppError("You don't have access to this company", 403));
-    }
 
     res.status(200).json(company);
   } catch (error) {
@@ -108,23 +97,9 @@ exports.getCompany = async (req, res, next) => {
 // Update Company ✅
 exports.updateCompany = async (req, res, next) => {
   try {
-    const { companyId } = req.params;
+    const company = req.company;
     const userId = req.user.id;
     const updates = req.body;
-
-    const company = await Company.findById(companyId);
-
-    if (!company) {
-      return next(new AppError("Company not found", 404));
-    }
-
-    // Check if user is owner or admin
-    const userRole = company.getUserRole(userId);
-    if (!["owner", "admin"].includes(userRole)) {
-      return next(
-        new AppError("Only owners and admins can update company", 403)
-      );
-    }
 
     // Handle logo upload // cloudinary
     if (updates.logo) {
@@ -140,17 +115,6 @@ exports.updateCompany = async (req, res, next) => {
       }
     }
 
-    // Update allowed fields
-
-    // Example of updates object:{
-    //   "owner": "id تاني",
-    //   "subscription": "enterprise"
-    // }
-    // ❌ خطر جدًا
-
-    //     الحل؟
-    // انت بتقول:
-    // أنا أسمح بتعديل الحقول دي بس
     const allowedFields = [
       "name",
       "industry",
@@ -196,35 +160,24 @@ exports.updateCompany = async (req, res, next) => {
 // Add Member to Company ✅
 exports.addMember = async (req, res, next) => {
   try {
-    const { companyId } = req.params;
+    const company = req.company;
     const { email, role, permissions } = req.body;
-    const userId = req.user.id;
+    const userRole = req.userRole; // من middleware
 
-    // Find company // التحقق من وجود الشركة
-    const company = await Company.findById(companyId);
-    if (!company) {
-      return next(new AppError("Company not found", 404));
-    }
-
-    // Check if user is owner or admin // التحقق من صلاحيات المستخدم
-    const userRole = company.getUserRole(userId);
-    if (!["owner", "admin"].includes(userRole)) {
-      return next(new AppError("Only owners and admins can add members", 403));
-    }
-
-    // Find user by email // التحقق من وجود المستخدم
     const newMember = await User.findOne({ email });
-    //check if user exists
-    if (!newMember) {
-      return next(new AppError("User not found with this email", 404));
-    }
+    if (!newMember) return next(new AppError("User not found", 404));
 
-    // Check if already a member
-    if (!company.isMember(newMember._id)) {
+    // تحقق من عدم وجود العضو مسبقًا
+    if (company.isMember(newMember._id))
       return next(new AppError("User is already a member", 400));
+
+    // القواعد حسب الدور
+    if (userRole === "member" && ["owner", "admin"].includes(role)) {
+      return next(
+        new AppError("Members cannot add users with Owner or Admin role", 403)
+      );
     }
 
-    // Add member
     company.members.push({
       userId: newMember._id,
       username: newMember.username,
@@ -235,10 +188,9 @@ exports.addMember = async (req, res, next) => {
 
     await company.save();
 
-    // Log activity
     await ActivityLog.log({
       companyId: company._id,
-      userId,
+      userId: req.user.id,
       action: "company.member.add",
       category: "company",
       details: {
@@ -265,22 +217,9 @@ exports.addMember = async (req, res, next) => {
 // Remove Member from Company ✅
 exports.removeMember = async (req, res, next) => {
   try {
-    const { companyId, memberId } = req.params;
+    const company = req.company;
+    const { memberId } = req.params;
     const userId = req.user.id;
-
-    // Find company // التحقق من وجود الشركة
-    const company = await Company.findById(companyId);
-    if (!company) {
-      return next(new AppError("Company not found", 404));
-    }
-
-    // Check if user is owner or admin // التحقق من صلاحيات المستخدم
-    const userRole = company.getUserRole(userId);
-    if (!["owner", "admin"].includes(userRole)) {
-      return next(
-        new AppError("Only owners and admins can remove members", 403)
-      );
-    }
 
     // Can't remove owner
     const memberToRemove = company.members.find(
@@ -322,18 +261,8 @@ exports.removeMember = async (req, res, next) => {
 // Get Company Statistics ✅
 exports.getStatistics = async (req, res, next) => {
   try {
-    const { companyId } = req.params;
-    const userId = req.user.id;
-
-    const company = await Company.findById(companyId);
-
-    if (!company) {
-      return next(new AppError("Company not found", 404));
-    }
-
-    if (!company.isMember(userId)) {
-      return next(new AppError("Access denied", 403));
-    }
+    const company = req.company;
+    const companyId = company._id;
 
     const [dashboardCount, reportCount, analyticsCount, recentActivity] =
       await Promise.all([
@@ -369,28 +298,20 @@ exports.getStatistics = async (req, res, next) => {
 exports.getUserCompanies = async (req, res, next) => {
   try {
     const userId = req.user.id;
-
-    const companies = await Company.find({
-      "members.userId": userId,
-    })
+    const companies = await Company.find({ "members.userId": userId })
       .select("name logo industry size subscription members statistics")
       .lean();
 
-    // Add user role for each company
     const companiesWithRole = companies.map((company) => {
       const member = company.members.find(
         (m) => m.userId.toString() === userId
       );
-      return {
-        ...company,
-        userRole: member ? member.role : null,
-      };
+      return { ...company, userRole: member ? member.role : null };
     });
 
-    res.status(200).json({
-      companies: companiesWithRole,
-      count: companies.length,
-    });
+    res
+      .status(200)
+      .json({ companies: companiesWithRole, count: companies.length });
   } catch (error) {
     next(error);
   }

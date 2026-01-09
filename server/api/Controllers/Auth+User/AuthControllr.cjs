@@ -8,7 +8,9 @@ const {
 const AppError = require("../../utils/AppError.cjs");
 const ActivityLog = require("../../Model/All Business/ActivityLog.cjs");
 const Company = require("../../Model/All Business/Company.cjs");
-
+/*
+ * This is a process for registering a new user ✅
+ */
 exports.register = async (req, res, next) => {
   try {
     // 1️⃣ Validate input
@@ -135,7 +137,9 @@ exports.register = async (req, res, next) => {
     next(error);
   }
 };
-
+/*
+ * This is a user login process ✅
+ */
 exports.login = async (req, res, next) => {
   try {
     const data = loginSchema.parse(req.body);
@@ -201,7 +205,9 @@ exports.login = async (req, res, next) => {
     next(error);
   }
 };
-
+/*
+ * logout process ✅
+ */
 exports.logout = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -233,7 +239,9 @@ exports.logout = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
+/*
+ * Get all users ✅
+ */
 exports.GetAllUser = async (req, res) => {
   try {
     let FilterUser = await UserModel.find(); // find user in database
@@ -248,7 +256,9 @@ exports.GetAllUser = async (req, res) => {
     return res.status(400).send({ Message: err }); //  status(400) is a bad request , send msg
   }
 };
-
+/*
+ * Get user profiles ✅
+ */
 exports.GetUserProfile = async (req, res) => {
   let userId = req.params.id;
   try {
@@ -266,7 +276,9 @@ exports.GetUserProfile = async (req, res) => {
     return res.status(400).send({ Message: err }); //  status(400) is a bad request , send msg
   }
 };
-// --------------------------------------------------------------------------------------------------------
+/*
+ * Get the current user's profile ✅
+ */
 exports.getMe = async (req, res, next) => {
   try {
     const user = await UserModel.findById(req.user.id).select("-Password");
@@ -277,5 +289,3 @@ exports.getMe = async (req, res, next) => {
     next(error);
   }
 };
-
-// --------------------------------------------------------------------------------------------------------

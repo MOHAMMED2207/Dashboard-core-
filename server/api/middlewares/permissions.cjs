@@ -1,5 +1,6 @@
 // server/api/middlewares/permissions.cjs
 const Company = require("../Model/All Business/Company.cjs");
+const Dashboard = require("../Model/Dashboard/Dashboard.cjs");
 const AppError = require("../utils/AppError.cjs");
 
 // Permission definitions by role
@@ -258,6 +259,31 @@ exports.isOwner = async (req, res, next) => {
   }
 };
 
+// middleware: check membership and set role
+exports.isMember = async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+    const userId = req.user.id;
+
+    if (!companyId) return next(new AppError("Company ID is required", 400));
+
+    const company = await Company.findById(companyId);
+    if (!company) return next(new AppError("Company not found", 404));
+
+    if (!company.isMember(userId))
+      return next(new AppError("Access denied", 403));
+
+    const userRole = company.getUserRole(userId);
+
+    req.company = company;
+    req.userRole = userRole;
+
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Check subscription status
 exports.checkSubscription = (requiredPlan) => {
   return async (req, res, next) => {
@@ -298,6 +324,71 @@ exports.checkSubscription = (requiredPlan) => {
     } catch (error) {
       next(error);
     }
+  };
+};
+
+// Who has the authority to create a dashboard?
+exports.canCreateDashboard = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { companyId } = req.body;
+
+    if (!companyId) {
+      return next(new AppError("Company ID is required", 400));
+    }
+
+    const company = await Company.findById(companyId);
+    if (!company || !company.isMember(userId)) {
+      return next(new AppError("Access denied", 403));
+    }
+
+    // Permission by role
+    const userRole = company.getUserRole(userId);
+    const userPermissions = PERMISSIONS[userRole] || [];
+
+    if (
+      !userPermissions.includes("*") &&
+      !userPermissions.includes("dashboard.create")
+    ) {
+      return next(new AppError("No permission to create dashboard", 403));
+    }
+
+    // Subscription / limits
+    const canCreate = await company.canCreateDashboard();
+    if (!canCreate) {
+      return next(
+        new AppError("Dashboard limit reached. Upgrade your plan.", 403)
+      );
+    }
+
+    req.company = company;
+    req.userRole = userRole;
+
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+// Who has access to the dashboard?
+exports.canAccessDashboard = (action) => {
+  return async (req, res, next) => {
+    const { dashboardId } = req.params;
+    const userId = req.user.id;
+
+    const dashboard = await Dashboard.findById(dashboardId);
+    if (!dashboard) {
+      return next(new AppError("Dashboard not found", 404));
+    }
+
+    if (!dashboard.canDo(userId, action)) {
+      return next(new AppError("Access denied", 403));
+    }
+    if (req.user.id !== dashboard.userId.toString()) {
+      return next(new AppError("Only owner can delete dashboard", 403));
+    }
+
+    req.dashboard = dashboard;
+    next();
   };
 };
 

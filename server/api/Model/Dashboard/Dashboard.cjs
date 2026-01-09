@@ -182,7 +182,9 @@ DashboardSchema.methods.canDo = function (userId, action) {
     (s) => s.userId.toString() === userId
   );
 
+  // 👇 dashboards company: any member can view
   if (action === "view") {
+    if (this.type === "company") return true;
     return isOwner || !!sharedUser;
   }
 
@@ -192,5 +194,6 @@ DashboardSchema.methods.canDo = function (userId, action) {
 
   return false;
 };
+
 
 module.exports = mongoose.model("Dashboard", DashboardSchema);

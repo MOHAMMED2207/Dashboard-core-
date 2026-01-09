@@ -10,22 +10,6 @@ exports.createDashboard = async (req, res, next) => {
     const userId = req.user.id;
     const { companyId, name, description, type, category, widgets } = req.body;
 
-    // Verify company membership
-    const company = await Company.findById(companyId);
-    if (!company || !company.isMember(userId)) {
-      return next(new AppError("Access denied", 403));
-    }
-
-    // Check dashboard creation limit
-    if (!(await company.canCreateDashboard())) {
-      return next(
-        new AppError(
-          "Dashboard limit reached for free plan. Upgrade your plan to create more dashboards.",
-          403
-        )
-      );
-    }
-
     // Create dashboard
     const dashboard = await Dashboard.create({
       companyId,
@@ -64,10 +48,8 @@ exports.getUserDashboards = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { companyId } = req.query;
-
     const query = { userId };
-    // إرجاع كل الـ Dashboards اللي:
-    // المستخدم هو المالك الأصلي، أو // تم مشاركتها معاه
+
     if (companyId) query.companyId = companyId;
     const dashboards = await Dashboard.find({
       $or: [{ userId }, { "sharedWith.userId": userId }],
@@ -76,10 +58,6 @@ exports.getUserDashboards = async (req, res, next) => {
       .lean()
       .skip(0)
       .limit(100);
-    // sort by isDefault first, then by lastViewedAt
-    // lean for performance
-    // skip 0 // work on pagination later
-    // limit to 100 dashboards // no pagination for now
 
     res.status(200).json({
       dashboards,
@@ -93,24 +71,8 @@ exports.getUserDashboards = async (req, res, next) => {
 // Get Dashboard by ID ✅
 exports.getDashboard = async (req, res, next) => {
   try {
-    const { dashboardId } = req.params;
+    const dashboard = req.dashboard; // جاية من middleware
     const userId = req.user.id;
-
-    const dashboard = await Dashboard.findById(dashboardId);
-
-    if (!dashboard) {
-      return next(new AppError("Dashboard not found", 404));
-    }
-
-    // Check access
-    const hasAccess =
-      dashboard.userId.toString() === userId ||
-      dashboard.type === "company" ||
-      dashboard.sharedWith.some((s) => s.userId.toString() === userId);
-
-    if (!hasAccess) {
-      return next(new AppError("Your not have access to this dashboard", 403));
-    }
 
     // Update view count and last viewed
     dashboard.viewCount += 1;
@@ -139,20 +101,9 @@ exports.getDashboard = async (req, res, next) => {
 // Update Dashboard
 exports.updateDashboard = async (req, res, next) => {
   try {
-    const { dashboardId } = req.params;
+    const dashboard = req.dashboard;
     const userId = req.user.id;
     const updates = req.body;
-
-    const dashboard = await Dashboard.findById(dashboardId);
-
-    if (!dashboard) {
-      return next(new AppError("Dashboard not found", 404));
-    }
-
-    // Check if user can edit
-    if (!dashboard.canDo(userId, "edit")) {
-      return next(new AppError("You don't have edit permission", 403));
-    }
 
     // Update allowed fields
     const allowedFields = [
@@ -197,19 +148,8 @@ exports.updateDashboard = async (req, res, next) => {
 // Delete Dashboard ✅
 exports.deleteDashboard = async (req, res, next) => {
   try {
-    const { dashboardId } = req.params;
+    const dashboard = req.dashboard;
     const userId = req.user.id;
-
-    const dashboard = await Dashboard.findById(dashboardId);
-
-    if (!dashboard) {
-      return next(new AppError("Dashboard not found", 404));
-    }
-
-    // Only owner can delete
-    if (dashboard.userId.toString() !== userId) {
-      return next(new AppError("Only owner can delete dashboard", 403));
-    }
 
     // Delete dashboard
     await dashboard.deleteOne();
@@ -238,32 +178,18 @@ exports.deleteDashboard = async (req, res, next) => {
 // Add Widget to Dashboard
 exports.addWidget = async (req, res, next) => {
   try {
-    const { dashboardId } = req.params;
+    const dashboard = req.dashboard; // Middleware verified access
     const userId = req.user.id;
     const widget = req.body;
 
-    const dashboard = await Dashboard.findById(dashboardId);
-
-    if (!dashboard) {
-      return next(new AppError("Dashboard not found", 404));
-    }
-
-    // Check edit permission // add widget requires edit permission
-    if (!(await dashboard.canDo(userId, "edit"))) {
-      return next(new AppError("you don't have edit permission", 403));
-    }
-
-    // Generate widget ID if not provide // توليد id فريد للودجت
     if (!widget.id) {
       widget.id = `widget-${Date.now()}-${Math.random()
         .toString(36)
         .substr(2, 9)}`;
     }
 
-    // Add widget
     await dashboard.addWidget(widget);
 
-    // Log activity
     await ActivityLog.log({
       companyId: dashboard.companyId,
       userId,
@@ -273,7 +199,7 @@ exports.addWidget = async (req, res, next) => {
         resource: "widget",
         resourceId: widget.id,
         description: `Added widget: ${widget.title}`,
-        metadata: { dashboardId, widgetType: widget.type },
+        metadata: { dashboardId: dashboard._id, widgetType: widget.type },
       },
     });
 
@@ -289,19 +215,8 @@ exports.addWidget = async (req, res, next) => {
 // get all Widgets ✅
 exports.getWidgets = async (req, res, next) => {
   try {
-    const { dashboardId } = req.params;
+    const dashboard = req.dashboard;
     const userId = req.user.id;
-
-    const dashboard = await Dashboard.findById(dashboardId);
-
-    if (!dashboard) {
-      return next(new AppError("Dashboard not found", 404));
-    }
-
-    // Check edit permission // update widget requires edit permission
-    if (!(await dashboard.canDo(userId, "view"))) {
-      return next(new AppError("you don't have edit permission", 403));
-    }
 
     res.status(200).json({
       name: dashboard.name,
@@ -316,20 +231,10 @@ exports.getWidgets = async (req, res, next) => {
 // Update Widget ✅
 exports.updateWidget = async (req, res, next) => {
   try {
-    const { dashboardId, widgetId } = req.params;
+    const { widgetId } = req.params;
     const userId = req.user.id;
     const updates = req.body;
-
-    const dashboard = await Dashboard.findById(dashboardId);
-
-    if (!dashboard) {
-      return next(new AppError("Dashboard not found", 404));
-    }
-
-    // Check edit permission // update widget requires edit permission
-    if (!(await dashboard.canDo(userId, "edit"))) {
-      return next(new AppError("you don't have edit permission", 403));
-    }
+    const dashboard = req.dashboard;
 
     // Update widget // تحديث الودجت
     await dashboard.updateWidget(widgetId, updates);
@@ -344,7 +249,7 @@ exports.updateWidget = async (req, res, next) => {
         resource: "widget",
         resourceId: widgetId,
         description: "Updated widget",
-        metadata: { dashboardId },
+        metadata: { dashboardId: dashboard._id },
       },
     });
 
@@ -359,19 +264,9 @@ exports.updateWidget = async (req, res, next) => {
 // Remove Widget from Dashboard ✅
 exports.removeWidget = async (req, res, next) => {
   try {
-    const { dashboardId, widgetId } = req.params;
+    const dashboard = req.dashboard;
+    const { widgetId } = req.params;
     const userId = req.user.id;
-
-    const dashboard = await Dashboard.findById(dashboardId);
-
-    if (!dashboard) {
-      return next(new AppError("Dashboard not found", 404));
-    }
-
-    // Check edit permission // remove widget requires edit permission
-    if (!(await dashboard.canDo(userId, "edit"))) {
-      return next(new AppError("you don't have edit permission", 403));
-    }
 
     // Remove widget
     await dashboard.removeWidget(widgetId);
@@ -401,20 +296,8 @@ exports.removeWidget = async (req, res, next) => {
 // Share Dashboard with Users ✅
 exports.shareDashboard = async (req, res, next) => {
   try {
-    const { dashboardId } = req.params;
+    const dashboard = req.dashboard;
     const { userIds, permission } = req.body;
-    const userId = req.user.id;
-
-    const dashboard = await Dashboard.findById(dashboardId);
-
-    if (!dashboard) {
-      return next(new AppError("Dashboard not found", 404));
-    }
-
-    // Only owner can share
-    if (dashboard.userId.toString() !== userId) {
-      return next(new AppError("Only owner can share dashboard", 403));
-    }
 
     // Add users to sharedWith
     userIds.forEach((uid) => {
@@ -466,29 +349,17 @@ exports.getTemplates = async (req, res, next) => {
 // create new (clone) of existing dashboard ✅
 exports.cloneDashboard = async (req, res, next) => {
   try {
-    const { dashboardId } = req.params;
+    const dashboard = req.dashboard;
     const { companyId, name } = req.body;
     const userId = req.user.id;
 
-    const template = await Dashboard.findById(dashboardId);
-
-    if (!template) {
-      return next(new AppError("Template not found", 404));
-    }
-
-    // Verify company membership
-    const company = await Company.findById(companyId);
-    if (!company || !company.isMember(userId)) {
-      return next(new AppError("Access denied", 403));
-    }
-
     // Clone dashboard
     const newDashboard = new Dashboard({
-      ...template.toObject(),
+      ...dashboard.toObject(),
       _id: undefined,
       companyId,
       userId,
-      name: name || `${template.name} (Copy)`,
+      name: name || `${dashboard.name} (Copy)`,
       isTemplate: false,
       isDefault: false,
       viewCount: 0,

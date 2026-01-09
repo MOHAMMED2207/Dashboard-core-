@@ -136,9 +136,12 @@ CompanySchema.virtual("isSubscriptionActive").get(function () {
 
 // Method to check if user is member of company ✅
 CompanySchema.methods.isMember = function (userId) {
-  return this.members.some((member) => ({
-    userId: member.userId._id.toString() === userId,
-  }));
+  return this.members.some((member) => {
+    const memberId = member.userId._id
+      ? member.userId._id.toString()
+      : member.userId.toString();
+    return memberId === userId.toString();
+  });
 };
 
 // Method to get user role in company ✅
