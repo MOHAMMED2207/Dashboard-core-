@@ -266,6 +266,7 @@ exports.removeWidget = async (req, res, next) => {
   try {
     const dashboard = req.dashboard;
     const { widgetId } = req.params;
+    const dashboardId = dashboard._id
     const userId = req.user.id;
 
     // Remove widget

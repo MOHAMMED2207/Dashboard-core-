@@ -1,36 +1,79 @@
-// server/api/Routes/Analytics.cjs
 const express = require("express");
 const AnalyticsController = require("../../Controllers/All Business/AnalyticsController.cjs");
 const authMiddleware = require("../../middlewares/authentication.cjs");
+const { hasPermission } = require("../../middlewares/permissions.cjs");
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authMiddleware);
 
-// ⚠️ IMPORTANT: More specific routes MUST come before generic routes
+/**
+ * =========================
+ * READ ANALYTICS
+ * =========================
+ */
 
-// Overview & KPIs (specific routes first)
-router.get("/:companyId/overview", AnalyticsController.getOverview); // 👀
-router.get("/:companyId/kpis", AnalyticsController.getKPIs); // 👀
-router.get("/:companyId/summary", AnalyticsController.getAnalyticsSummary); // 👀
+// Overview
+router.get(
+  "/:companyId/overview",
+  hasPermission("analytics.read"),
+  AnalyticsController.getOverview
+);
 
-// Insights (specific route)
-router.get("/:companyId/insights/all", AnalyticsController.getInsights); // 👀
+// KPIs
+router.get(
+  "/:companyId/kpis",
+  hasPermission("analytics.read"),
+  AnalyticsController.getKPIs
+);
 
-// Custom Analytics (POST before GET to avoid conflicts)
-router.post("/:companyId/custom", AnalyticsController.createCustomAnalytics); // 👀
+// Summary
+router.get(
+  "/:companyId/summary",
+  hasPermission("analytics.read"),
+  AnalyticsController.getAnalyticsSummary
+);
 
-// Comparison (must come before generic :type route)
-router.get("/:companyId/:type/comparison", AnalyticsController.getComparison); // 👀
+// All Insights
+router.get(
+  "/:companyId/insights/all",
+  hasPermission("analytics.read"),
+  AnalyticsController.getInsights
+);
+
+// Comparison (must come before generic :type)
+router.get(
+  "/:companyId/:type/comparison",
+  hasPermission("analytics.read"),
+  AnalyticsController.getComparison
+);
+
+// Generic Analytics by Type (MUST be last)
+router.get(
+  "/:companyId/:type",
+  hasPermission("analytics.read"),
+  AnalyticsController.getAnalyticsByType
+);
+
+/**
+ * =========================
+ * WRITE / UPDATE ANALYTICS
+ * =========================
+ */
+
+// Create Custom Analytics
+router.post(
+  "/:companyId/custom",
+  hasPermission("analytics.create"),
+  AnalyticsController.createCustomAnalytics
+);
 
 // Mark Insight as Viewed
 router.put(
   "/:analyticsId/insights/:insightId/view",
+  hasPermission("analytics.read"),
   AnalyticsController.markInsightViewed
-); // 👀
-
-// Generic Analytics by Type (MUST be last to avoid catching other routes)
-router.get("/:companyId/:type", AnalyticsController.getAnalyticsByType); // 👀
+);
 
 module.exports = router;

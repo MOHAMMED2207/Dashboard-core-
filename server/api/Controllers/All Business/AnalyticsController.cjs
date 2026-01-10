@@ -3,103 +3,12 @@ const Analytics = require("../../Model/All Business/Analytics.cjs");
 const Company = require("../../Model/All Business/Company.cjs");
 const ActivityLog = require("../../Model/All Business/ActivityLog.cjs");
 const AppError = require("../../utils/AppError.cjs");
-
-// ===================================
-// Helper Functions ✅✅✅✅✅✅✅
-// ===================================
-
-/**
- * Verify user has access to company ✅
- */
-const verifyCompanyAccess = async (companyId, userId) => {
-  const company = await Company.findById(companyId);
-  if (!company || !company.isMember(userId)) {
-    throw new AppError("Access denied", 403);
-  }
-  return company;
-};
-
-/**
- * Calculate date range based on days parameter ✅ Start Date | End Date
- */
-const calculateDateRange = (days) => {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - parseInt(days));
-  return { startDate, endDate };
-};
-
-/**
- * Fetch analytics with fallback to older data
- */
-const fetchAnalyticsWithFallback = async (query, includeOld = "true") => {
-  let data = await Analytics.findOne({
-    ...query,
-    status: "completed",
-  })
-    .sort({ createdAt: -1 })
-    .lean();
-
-  // Fallback: get latest available data if nothing found in range ✅
-  if (!data && includeOld === "true") {
-    const { "period.start": _, ...baseQuery } = query;
-    data = await Analytics.findOne({
-      ...baseQuery,
-      status: "completed",
-    })
-      .sort({ createdAt: -1 })
-      .lean();
-  }
-
-  return data;
-};
-
-/**
- * Format overview data from analytics result ✅ ملخص {summary}
- */
-const formatOverviewData = (analyticsResult, userId) => {
-  if (!analyticsResult) return null;
-
-  return {
-    current: analyticsResult.data?.metrics?.total || 0,
-    change: analyticsResult.data?.metrics?.change || 0,
-    changeRate: analyticsResult.data?.metrics?.changeRate || 0,
-    trend: analyticsResult.predictions?.trend || "stable",
-    lastUpdated: analyticsResult.updatedAt || analyticsResult.createdAt,
-    period: {
-      start: analyticsResult.period.start,
-      end: analyticsResult.period.end,
-    },
-  };
-};
-
-/**
- * Count insights (total and unviewed) => (Notifications🔔) ✅
- */
-const countInsights = (analyticsResults, userId) => {
-  let totalInsights = 0;
-  let unviewedInsights = 0;
-
-  analyticsResults.forEach((analytics) => {
-    if (!analytics?.insights) return;
-
-    totalInsights += analytics.insights.length;
-
-    const unviewed = analytics.insights.filter(
-      (insight) =>
-        !insight.viewedBy?.some(
-          (view) => view.userId.toString() === userId.toString()
-        )
-    );
-    unviewedInsights += unviewed.length;
-  });
-
-  return { totalInsights, unviewedInsights };
-};
-
-// ===================================
-// Main Controllers
-// ===================================
+const {
+  calculateDateRange,
+  fetchAnalyticsWithFallback,
+  formatOverviewData,
+  countInsights,
+} = require("../../helpers/analytics.helpers.cjs");
 
 /**
  * Get Analytics Overview ✅
@@ -110,9 +19,6 @@ exports.getOverview = async (req, res, next) => {
     const { companyId } = req.params;
     const userId = req.user.id;
     const { days = 365, includeOld = "true" } = req.query;
-
-    // Verify access // 1- user is Member in this company // 2- found this company
-    await verifyCompanyAccess(companyId, userId);
 
     // Calculate date range
     const { startDate, endDate } = calculateDateRange(days);
@@ -196,9 +102,6 @@ exports.getAnalyticsByType = async (req, res, next) => {
     const { companyId, type } = req.params;
     const userId = req.user.id;
     const { days = 365, includeOld = "true", limit = 50 } = req.query;
-
-    // Verify access
-    await verifyCompanyAccess(companyId, userId);
 
     // Calculate date range
     const { startDate, endDate } = calculateDateRange(days);
@@ -318,9 +221,6 @@ exports.getKPIs = async (req, res, next) => {
     const { companyId } = req.params;
     const userId = req.user.id;
 
-    // Verify access
-    await verifyCompanyAccess(companyId, userId);
-
     // Fetch latest analytics for each KPI type
     const analyticsTypes = ["sales", "revenue", "users", "conversion"];
 
@@ -414,20 +314,12 @@ exports.getKPIs = async (req, res, next) => {
 /**
  * Get Analytics Summary ✅
  * GET /api/analytics/:companyId/summary ✅
- * الخطوات التي تتم داخل الدالة:
- * 1️⃣ استخراج الـ companyId من معلمات الـ URL.
- * 2️⃣ استخراج الـ userId من التوكن (بعد التحقق من الـ Auth).
- * 3️⃣ التحقق من أن المستخدم عضو في الشركة باستخدام `verifyCompanyAccess`.
- * 4️⃣ تعريف أنواع الـ Analytics المطلوبة (مثل المبيعات، الإيرادات، المستخدمين، إلخ).
- * 5️⃣ لكل نوع من أنواع الـ Analytics:
  **/
 exports.getAnalyticsSummary = async (req, res, next) => {
   try {
-    const { companyId } = req.params;
-    const userId = req.user.id;
-
-    // Verify access
-    const company = await verifyCompanyAccess(companyId, userId);
+    const company = req.company;
+    const companyId = company._id;
+    // console.log(companyId);
 
     const analyticsTypes = [
       "sales",
@@ -471,7 +363,7 @@ exports.getAnalyticsSummary = async (req, res, next) => {
     const totalInsights = await Analytics.aggregate([
       {
         $match: {
-          companyId: company._id,
+          companyId,
           status: "completed",
         },
       },
@@ -511,9 +403,6 @@ exports.getInsights = async (req, res, next) => {
     const { companyId } = req.params;
     const userId = req.user.id;
     const { priority, type, limit = 10 } = req.query;
-
-    // Verify access
-    await verifyCompanyAccess(companyId, userId);
 
     // Fetch analytics with insights
     const analytics = await Analytics.find({
@@ -581,9 +470,6 @@ exports.createCustomAnalytics = async (req, res, next) => {
     const userId = req.user.id;
     const { type, category, period, data, insights, predictions } = req.body;
 
-    // Verify access
-    await verifyCompanyAccess(companyId, userId);
-
     // Create analytics record
     const analytics = await Analytics.create({
       companyId,
@@ -627,12 +513,11 @@ exports.createCustomAnalytics = async (req, res, next) => {
  */
 exports.getComparison = async (req, res, next) => {
   try {
-    const { companyId, type } = req.params;
-    const userId = req.user.id;
-    const { period1, period2 } = req.query;
+    const { type } = req.params;
 
-    // Verify access
-    await verifyCompanyAccess(companyId, userId);
+    const company = req.company;
+    const companyId = company._id;
+    const { period1, period2 } = req.query;
 
     // Validate periods
     if (!period1 || !period2) {
