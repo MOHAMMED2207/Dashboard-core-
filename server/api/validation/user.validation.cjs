@@ -25,7 +25,7 @@ exports.registerSchema = z.object({
   Phone: z.string().min(11, "Invalid phone number").max(11, "Invalid phone number"),
   companyEmail: z.string().email("Invalid email format"),
   companyName: z.string().min(2, "Company name is too short"),
-  role: z.enum(["owner","admin","manager","employee","viewer"]).default("employee")
+  role: z.enum(["owner","admin","employee","viewer"]).default("employee")
 });
 
 // login schema

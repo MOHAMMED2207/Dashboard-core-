@@ -189,10 +189,12 @@ AnalyticsSchema.index({ createdAt: -1 });
 AnalyticsSchema.index({ status: 1 });
 
 // Method to add insight
-AnalyticsSchema.methods.addInsight = function (insight) {
+AnalyticsSchema.methods.addInsight = async function(insight) {
+  this.insights = this.insights || [];
   this.insights.push(insight);
-  return this.save();
+  await this.save(); // ← مهم جداً للحفظ
 };
+
 
 // Method to get unviewed insights
 AnalyticsSchema.methods.getUnviewedInsights = function (userId) {

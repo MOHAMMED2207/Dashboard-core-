@@ -76,4 +76,26 @@ router.put(
   AnalyticsController.markInsightViewed
 );
 
+
+
+/**
+ * =========================
+ * AI Insights / (GET || CREATE)
+ * =========================
+ */
+
+// AI Insights
+router.get(
+  "/:companyId/ai/insights",
+  hasPermission("analytics.read"),
+  AnalyticsController.getAIInsights
+);
+
+router.post(
+  "/:companyId/ai/insights",
+  hasPermission("analytics.create"),
+  AnalyticsController.generateAndSaveAIInsights
+);
+
+
 module.exports = router;

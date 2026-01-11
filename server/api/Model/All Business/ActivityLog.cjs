@@ -86,7 +86,7 @@ const ActivityLogSchema = new Schema(
     },
     details: {
       resource: String, // e.g., "dashboard", "report", "user"
-      resourceId: mongoose.Schema.Types.ObjectId,
+      resourceId: String, // <-- غيرنا ObjectId لـ String
       description: String,
       changes: {
         before: mongoose.Schema.Types.Mixed,
@@ -94,6 +94,7 @@ const ActivityLogSchema = new Schema(
       },
       metadata: mongoose.Schema.Types.Mixed,
     },
+
     result: {
       type: String,
       enum: ["success", "failure", "pending"],
@@ -206,8 +207,6 @@ ActivityLogSchema.statics.getStats = async function (companyId, days = 30) {
 
   return stats;
 };
-
-
 
 const ActivityLog = mongoose.model("ActivityLog", ActivityLogSchema);
 ActivityLog.CATEGORIES = ACTIVITY_CATEGORIES;

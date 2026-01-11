@@ -3,6 +3,12 @@ const Analytics = require("../../Model/All Business/Analytics.cjs");
 const Company = require("../../Model/All Business/Company.cjs");
 const ActivityLog = require("../../Model/All Business/ActivityLog.cjs");
 const AppError = require("../../utils/AppError.cjs");
+
+const {
+  generateAllInsights,
+  updateAnalyticsWithInsights,
+} = require("../../services/ai/insightsGenerator.cjs");
+
 const {
   calculateDateRange,
   fetchAnalyticsWithFallback,
@@ -621,6 +627,72 @@ exports.markInsightViewed = async (req, res, next) => {
         id: insight._id,
         viewedBy: insight.viewedBy.length,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/*
+ AI Insights 2️⃣
+*/
+
+/**
+ * Preview AI Insights (NO SAVE)
+ * GET /api/analytics/:companyId/ai/insights
+ */
+exports.getAIInsights = async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+
+    const allAnalytics = await Analytics.find({
+      companyId,
+      status: "completed",
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
+    const insights = await generateAllInsights({
+      companyId,
+      allAnalytics,
+    });
+
+    res.status(200).json({
+      source: "ai",
+      preview: true,
+      total: insights.length,
+      insights,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Generate & Save AI Insights
+ * POST /api/analytics/:companyId/ai/insights
+ */
+exports.generateAndSaveAIInsights = async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+
+    const allAnalytics = await Analytics.find({
+      companyId,
+      status: "completed",
+    })
+      .sort({ createdAt: -1 })
+      .limit(10); // بدون lean
+
+    const result = await updateAnalyticsWithInsights({
+      companyId,
+      allAnalytics,
+    });
+
+    res.status(200).json({
+      message: "AI insights generated and saved successfully",
+      updated: result.updated,
+      insightsCount: result.insights.length,
     });
   } catch (error) {
     next(error);

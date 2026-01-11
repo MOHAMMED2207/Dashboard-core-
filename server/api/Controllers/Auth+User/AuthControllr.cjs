@@ -279,13 +279,18 @@ exports.GetUserProfile = async (req, res) => {
 /*
  * Get the current user's profile ✅
  */
-exports.getMe = async (req, res, next) => {
+exports.getMe = async (req, res) => {
   try {
     const user = await UserModel.findById(req.user.id).select("-Password");
     if (!user) throw new AppError("User not found", 404);
 
-    res.status(200).json(user);
+     return res.json({
+      // return res.json
+      Message: "Data is Succesfully", //msg
+      status: 200, // story is succesd
+      user: user, // data from user
+    });
   } catch (error) {
-    next(error);
+    return res.status(400).send({ Message: err }); //  status(400) is a bad request , send msg
   }
 };

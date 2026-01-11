@@ -3,7 +3,6 @@ const Company = require("../../Model/All Business/Company.cjs");
 const User = require("../../Model/Auth+User/Auth.cjs");
 const ActivityLog = require("../../Model/All Business/ActivityLog.cjs");
 const AppError = require("../../utils/AppError.cjs");
-
 const Dashboard = require("../../Model/Dashboard/Dashboard.cjs");
 const Report = require("../../Model/Report.cjs");
 const Analytics = require("../../Model/All Business/Analytics.cjs");
@@ -71,7 +70,7 @@ exports.createCompany = async (req, res, next) => {
       },
     });
 
-    res.status(201).json({
+   return res.status(201).json({
       message: "Company created successfully",
       company,
     });
