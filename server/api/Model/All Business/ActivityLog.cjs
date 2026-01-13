@@ -50,6 +50,7 @@ const ACTIVITY_ACTIONS = {
   REPORT_SHARE: "report.share",
   // Analytics actions
   ANALYTICS_VIEW: "analytics.view",
+  ANALYTICS_CREATE: "analytics.create",
   ANALYTICS_EXPORT: "analytics.export",
   // Settings actions
   SETTINGS_UPDATE: "settings.update",

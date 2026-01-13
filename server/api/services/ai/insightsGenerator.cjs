@@ -41,14 +41,11 @@ exports.generateAllInsights = async ({ allAnalytics, companyId }) => {
     }
 
     // تحليل المخاطر (على مستوى الشركة)
-    const riskInsights = await analyzeRisks(companyId, allAnalytics);
+    const riskInsights = await analyzeRisks(allAnalytics);
     if (riskInsights) allInsights.push(...riskInsights);
 
     // اكتشاف الفرص (على مستوى الشركة)
-    const opportunityInsights = await discoverOpportunities(
-      companyId,
-      allAnalytics
-    );
+    const opportunityInsights = await discoverOpportunities(allAnalytics);
     if (opportunityInsights) allInsights.push(...opportunityInsights);
 
     // ترتيب حسب الأولوية

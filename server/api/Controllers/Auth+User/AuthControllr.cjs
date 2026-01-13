@@ -168,8 +168,8 @@ exports.login = async (req, res, next) => {
     }
 
     // 🔥 Activity Log
-    await ActivityLog.log({
-      companyId: companyId,
+     await ActivityLog.log({
+      companyId: company._id,
       userId: user._id,
       action: "user.login",
       category: "authentication",
@@ -178,6 +178,7 @@ exports.login = async (req, res, next) => {
       userAgent: req.headers["user-agent"],
       details: {
         resource: "auth",
+        resourceId: user._id, // ObjectId حقيقي
         description: "User logged in successfully",
       },
       severity: "low",
@@ -208,18 +209,17 @@ exports.login = async (req, res, next) => {
 /*
  * logout process ✅
  */
-exports.logout = async (req, res) => {
+exports.logout = async (req, res, next) => {
   try {
     const userId = req.user.id;
-
     const user = await UserModel.findById(userId);
     if (!user) throw new AppError("Invalid credentials", 400);
 
-    const company = await Company.findOne({ "members.userId": userId._id });
-    const companyId = company ? company._id : null; // company.id // user found in members company
+    const company = await Company.findOne({ "members.userId": user._id });
 
+    // 🔥 ActivityLog تسجيل الخروج
     await ActivityLog.log({
-      companyId: companyId,
+      companyId: company ? company._id : null, // لو مفيش شركة خليها null
       userId: user._id,
       action: "user.logout",
       category: "authentication",
@@ -228,7 +228,11 @@ exports.logout = async (req, res) => {
       userAgent: req.headers["user-agent"],
       details: {
         resource: "auth",
-        description: "User Logged out successfully",
+        resourceId: user._id, // ObjectId حقيقي
+        description: "User logged out successfully",
+        metadata: {
+          note: company ? "User has company" : "User has no company",
+        },
       },
       severity: "low",
     });
@@ -239,6 +243,7 @@ exports.logout = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 /*
  * Get all users ✅
  */
@@ -284,7 +289,7 @@ exports.getMe = async (req, res) => {
     const user = await UserModel.findById(req.user.id).select("-Password");
     if (!user) throw new AppError("User not found", 404);
 
-     return res.json({
+    return res.json({
       // return res.json
       Message: "Data is Succesfully", //msg
       status: 200, // story is succesd
