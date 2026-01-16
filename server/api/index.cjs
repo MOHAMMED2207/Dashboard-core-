@@ -26,31 +26,36 @@ cloudinary.config({
   api_secret: process.env.Cloudinary_API_SECRET,
 });
 
-// تهيئة Express
+
 const app = express();
 
-// المكونات الوسطى (middlewares)
-// تحديد حد الحجم إلى 1GB
-app.use(errorHandler);
+// ✅ Middlewares الأساسية أولاً
 app.use(bodyParser.json({ limit: "1gb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(cors({
+  origin: 'http://localhost:3001',
+  credentials: true
+}));
 
-const allowedOrigins = ["http://localhost:3000", "http://localhost:3001"];
+// const allowedOrigins = ["http://localhost:3000", "http://localhost:3001"];
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-};
+// const corsOptions = {
+//   origin: function (origin, callback) {
+//     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+//       callback(null, true);
+//     } else {
+//       callback(new Error("Not allowed by CORS"));
+//     }
+//   },
+//   credentials: true,
+// };
+// app.use(cors({
+//   origin: 'http://localhost:3000',
+//   credentials: true
+// }));
 
-app.use(cors(corsOptions));
-
+   // مثال في Express.js
 // API Routes
 app.use("/api", AuthRouter); // Authentication routes
 app.use("/api", UserRouter); // User routes
@@ -81,3 +86,11 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
+
+
+
+
+
+
+// ✅ errorHandler يجب أن يكون في النهاية (بعد كل الـ routes)
+app.use(errorHandler);

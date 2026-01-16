@@ -1,8 +1,7 @@
 // server/api/Controllers/DashboardController.cjs
 const Dashboard = require("./../../Model/Dashboard/Dashboard.cjs");
-const Company = require("../../Model/All Business/Company.cjs");
 const ActivityLog = require("../../Model/All Business/ActivityLog.cjs");
-const AppError = require("./../../utils/AppError.cjs");
+const AppError = require("../../utils/AppError.cjs");
 
 // Create New Dashboard ✅
 exports.createDashboard = async (req, res, next) => {
@@ -216,7 +215,6 @@ exports.addWidget = async (req, res, next) => {
 exports.getWidgets = async (req, res, next) => {
   try {
     const dashboard = req.dashboard;
-    const userId = req.user.id;
 
     res.status(200).json({
       name: dashboard.name,
@@ -236,6 +234,13 @@ exports.updateWidget = async (req, res, next) => {
     const updates = req.body;
     const dashboard = req.dashboard;
 
+    // 1️⃣ تأكد إن الويدجيت موجود
+    const widget = dashboard.widgets.find((w) => w.id.toString() === widgetId);
+
+    if (!widget) {
+      return next(new AppError("Widget not found", 404));
+    }
+    
     // Update widget // تحديث الودجت
     await dashboard.updateWidget(widgetId, updates);
 
@@ -266,13 +271,20 @@ exports.removeWidget = async (req, res, next) => {
   try {
     const dashboard = req.dashboard;
     const { widgetId } = req.params;
-    const dashboardId = dashboard._id;
     const userId = req.user.id;
+
+    // 1️⃣ تأكد إن الويدجيت موجود
+    const widget = dashboard.widgets.find((w) => w.id.toString() === widgetId);
+
+    if (!widget) {
+      return next(new AppError("Widget not found", 404));
+    }
 
     // Remove widget
     await dashboard.removeWidget(widgetId);
 
     // Log activity
+    // 3️⃣ Log activity (مين اتمسح بالضبط)
     await ActivityLog.log({
       companyId: dashboard.companyId,
       userId,
@@ -281,13 +293,21 @@ exports.removeWidget = async (req, res, next) => {
       details: {
         resource: "widget",
         resourceId: widgetId,
-        description: "Removed widget",
-        metadata: { dashboardId },
+        description: `Removed widget (${widget.type})`,
+        metadata: {
+          dashboardId: dashboard._id,
+          widgetName: widget.title,
+        },
       },
     });
 
     res.status(200).json({
       message: "Widget removed successfully",
+      removedWidget: {
+        id: widget.id,
+        title: widget.title,
+        type: widget.type,
+      },
     });
   } catch (error) {
     next(error);

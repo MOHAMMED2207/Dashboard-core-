@@ -48,7 +48,6 @@ exports.register = async (req, res, next) => {
 
     // 5️⃣ Find existing company
     let company = await Company.findOne({ email: data.companyEmail });
-
     let isNewCompany = false;
 
     if (!company) {
@@ -83,10 +82,11 @@ exports.register = async (req, res, next) => {
     // 7️⃣ Add user to company members
     company.members.push({
       userId: user._id,
+      username: user.username,
+      email: user.email,
       role: company.owner.equals(user._id) ? "owner" : "employee",
       joinedAt: new Date(),
     });
-
     await company.save();
 
     // 8️⃣ Update user's companyId
@@ -118,12 +118,28 @@ exports.register = async (req, res, next) => {
       },
     });
 
+    // 🔑 Generate JWT
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // 🔐 Set JWT in httpOnly cookie
+    res.cookie("jwt", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 أيام
+    });
+
     const message = isNewCompany
       ? `User registered successfully and created new company: ${company.name}`
       : "User registered successfully";
 
+    // 🔄 Send response
     res.status(201).json({
-      message: message,
+      message,
       user: {
         id: user._id,
         fullname: user.fullname,
@@ -137,6 +153,7 @@ exports.register = async (req, res, next) => {
     next(error);
   }
 };
+
 /*
  * This is a user login process ✅
  */
@@ -150,25 +167,32 @@ exports.login = async (req, res, next) => {
     const isMatch = await bcrypt.compare(data.Password, user.Password);
     if (!isMatch) throw new AppError("Invalid credentials", 400);
 
-    // JWT minimal payload
+    // 🔑 هنا نولد التوكن
     const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { id: user._id, role: user.role }, // payload minimal
+      process.env.JWT_SECRET, // secret
+      { expiresIn: "7d" } // مدة صلاحية 7 أيام
     );
+
+    // 💾 نحط التوكن في httpOnly cookie
+    res.cookie("jwt", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 أيام
+    });
 
     const company = await Company.findOne({ "members.userId": user._id });
 
-    const companyId = company ? company._id : null; // company.id // user found in members company
-    const UserIsOwner = company.owner === user._id ? true : false;
+    const companyId = company ? company._id : null;
+    const UserIsOwner = company?.owner.equals(user._id) || false;
 
-    //
     if (!companyId && !UserIsOwner) {
-      return next(new AppError("user dont have any company", 404));
+      return next(new AppError("User doesn't belong to any company", 404));
     }
 
     // 🔥 Activity Log
-     await ActivityLog.log({
+    await ActivityLog.log({
       companyId: company._id,
       userId: user._id,
       action: "user.login",
@@ -178,15 +202,15 @@ exports.login = async (req, res, next) => {
       userAgent: req.headers["user-agent"],
       details: {
         resource: "auth",
-        resourceId: user._id, // ObjectId حقيقي
+        resourceId: user._id,
         description: "User logged in successfully",
       },
       severity: "low",
     });
 
+    // ⚡ Response بدون التوكن، لأنه في cookie
     res.status(200).json({
       message: "Login successful",
-      token,
       user: {
         id: user._id,
         fullname: user.fullname,
@@ -200,26 +224,32 @@ exports.login = async (req, res, next) => {
         subscription: company.subscription,
         members: company.members,
       },
-      count: company.length,
     });
   } catch (error) {
     next(error);
   }
 };
+
 /*
  * logout process ✅
  */
 exports.logout = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id; // موجود من middleware
     const user = await UserModel.findById(userId);
-    if (!user) throw new AppError("Invalid credentials", 400);
+    if (!user) throw new AppError("Invalid credentials", 401);
 
     const company = await Company.findOne({ "members.userId": user._id });
 
-    // 🔥 ActivityLog تسجيل الخروج
+    // مسح الكوكي
+    res.clearCookie("jwt", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+    });
+
     await ActivityLog.log({
-      companyId: company ? company._id : null, // لو مفيش شركة خليها null
+      companyId: company?._id || null,
       userId: user._id,
       action: "user.logout",
       category: "authentication",
@@ -228,18 +258,15 @@ exports.logout = async (req, res, next) => {
       userAgent: req.headers["user-agent"],
       details: {
         resource: "auth",
-        resourceId: user._id, // ObjectId حقيقي
+        resourceId: user._id,
         description: "User logged out successfully",
-        metadata: {
-          note: company ? "User has company" : "User has no company",
-        },
       },
       severity: "low",
     });
 
     res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
-    console.log("Error in logout controller", error.message);
+    console.log("Error in logout controller", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -286,16 +313,69 @@ exports.GetUserProfile = async (req, res) => {
  */
 exports.getMe = async (req, res) => {
   try {
-    const user = await UserModel.findById(req.user.id).select("-Password");
+    const user = await UserModel.findById(req.user.id)
+      .select("-Password")
+      .lean();
     if (!user) throw new AppError("User not found", 404);
 
+    let companyData = null;
+
+    if (user.companyId) {
+      const company = await Company.findById(user.companyId).lean();
+
+      if (company) {
+        const member = company.members.find(
+          (m) => m.userId.toString() === user._id.toString()
+        );
+
+        const limit = parseInt(req.query.limit) || 5; // عدد الأعضاء المطلوب إرجاعهم (افتراضي 5)
+
+        // ترتيب الأعضاء حسب الانضمام الأحدث أولاً (اختياري)
+        const sortedMembers = company.members
+          .sort((a, b) => new Date(b.joinedAt) - new Date(a.joinedAt))
+          .slice(0, limit);
+
+        const members = sortedMembers.map((m) => ({
+          id: m.userId,
+          username: m.username,
+          email: m.email,
+          role: m.role,
+          permissions: m.permissions || [],
+          joinedAt: m.joinedAt,
+        }));
+
+        companyData = {
+          id: company._id,
+          name: company.name,
+          email: company.email,
+          industry: company.industry,
+          size: company.size,
+          subscription: company.subscription,
+          userRole: member?.role || "employee",
+          membersCount: company.members.length, // العدد الكلي
+          members, // فقط العدد المحدود
+        };
+      }
+    }
+
     return res.json({
-      // return res.json
-      Message: "Data is Succesfully", //msg
-      status: 200, // story is succesd
-      user: user, // data from user
+      message: "Data is successfully retrieved",
+      status: 200,
+      user: {
+        id: user._id,
+        fullname: user.fullname,
+        username: user.username,
+        email: user.email,
+        phone: user.Phone,
+        role: user.role,
+        profileImg: user.ProfileImg || null,
+        coverImg: user.CoverImg || null,
+        company: companyData,
+      },
     });
-  } catch (error) {
-    return res.status(400).send({ Message: err }); //  status(400) is a bad request , send msg
+  } catch (err) {
+    return res
+      .status(400)
+      .send({ message: err.message || "Failed to fetch data" });
   }
 };

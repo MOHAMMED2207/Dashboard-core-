@@ -14,11 +14,12 @@ const userScheam = new Schema(
     Phone: { type: String, unique: true },
     email: { type: String, unique: true }, // unique: true means that the email must be unique
     Password: String,
-    role: { type: String, default: "User" }, // this is the role of the user
     ProfileImg: String, // this is the profile image of the user
     CoverImg: String, // this is the cover image of the user
     bio: String,
     link: String, // this is the link of the user
+    role: { type: String, default: "User" }, // this is the role of the user
+    companyId: { type: Schema.Types.ObjectId, ref: "Company" }, // <--- جديد
   },
   { timestamps: true }
 );

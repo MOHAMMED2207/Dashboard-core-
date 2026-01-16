@@ -1,22 +1,25 @@
-// {
-//   "fullname": "User Example Test 2",
-//   "username": "shady22",
-//   "age": 20,
-//   "email": "example2@example.com",
-//   "Password": "Example2287",
-//   "Phone": "01501311480",
-//   "companyEmail": "Example@techsolutions.com",
-//   "companyName": "New company Example Test"
-// }
+// // {
+// //     "message": "User registered successfully and created new company: New company Example Test",
+// //     "user": {
+// //         "id": "6966f14a256bdd92c7521087",
+// //         "fullname": "User Example Test 1",
+// //         "username": "Example12",
+// //         "email": "example@example.com",
+// //         "company": "New company Example Test",
+// //         "role": "owner"
+// //     }
+// // }
+
+
 
 // {
 //     "message": "Login successful",
-//     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NjE2MzQ0ODRlMmE4NjgwZmRlN2QyNyIsInJvbGUiOiJlbXBsb3llZSIsImlhdCI6MTc2Nzk5MDEwOSwiZXhwIjoxNzY4NTk0OTA5fQ.jvStwMSkvNf1XisBwFfLyzg4nifkdouigU736pT1ObM",
+//     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NjZmMTRhMjU2YmRkOTJjNzUyMTA4NyIsInJvbGUiOiJlbXBsb3llZSIsImlhdCI6MTc2ODM1NDMxNiwiZXhwIjoxNzY4OTU5MTE2fQ.GKhx7TiUmkdP2lqSVWeUKlSUDbrqGGS7stvaDrp7n_Q",
 //     "user": {
-//         "id": "6961634484e2a8680fde7d27",
-//         "fullname": "User Example Test 2",
-//         "username": "shady22",
-//         "email": "example2@example.com",
+//         "id": "6966f14a256bdd92c7521087",
+//         "fullname": "User Example Test 1",
+//         "username": "Example12",
+//         "email": "example@example.com",
 //         "role": "employee"
 //     },
 //     "company": {
@@ -25,11 +28,11 @@
 //         "subscription": "free",
 //         "members": [
 //             {
-//                 "userId": "6961634484e2a8680fde7d27",
+//                 "userId": "6966f14a256bdd92c7521087",
 //                 "role": "owner",
-//                 "joinedAt": "2026-01-09T20:21:24.998Z",
+//                 "joinedAt": "2026-01-14T01:28:43.420Z",
 //                 "permissions": [],
-//                 "_id": "6961634584e2a8680fde7d2e"
+//                 "_id": "6966f14b256bdd92c752108e"
 //             }
 //         ]
 //     }
