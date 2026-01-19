@@ -29,6 +29,11 @@ router.put(
 );
 
 // إضافة عضو ✅
+router.get(
+  "/:companyId/members",
+  // permission.isMember, // فقط Owner/Admin يستطيع الإضافة
+  CompanyController.getMember
+);
 router.post(
   "/:companyId/members",
   permission.isMember, // فقط Owner/Admin يستطيع الإضافة

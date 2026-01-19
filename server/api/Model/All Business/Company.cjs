@@ -84,27 +84,13 @@ const CompanySchema = new Schema(
     },
     members: [
       {
-        userId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "auth",
-        },
-        username: {
-          type: String,
-          ref: "auth",
-        },
-        email: {
-          type: String,
-          ref: "auth",
-        },
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "auth" },
         role: {
           type: String,
           enum: ["owner", "admin", "manager", "employee", "viewer"],
           default: "employee",
         },
-        joinedAt: {
-          type: Date,
-          default: Date.now,
-        },
+        joinedAt: { type: Date, default: Date.now },
         permissions: [String],
       },
     ],

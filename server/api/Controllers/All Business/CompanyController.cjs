@@ -7,6 +7,7 @@ const Dashboard = require("../../Model/Dashboard/Dashboard.cjs");
 const Report = require("../../Model/Report.cjs");
 const Analytics = require("../../Model/All Business/Analytics.cjs");
 const { v2: cloudinary } = require("cloudinary");
+const { formatTimeSince } = require("../../helpers/formatTimeSince.cjs");
 
 // Create Company ✅
 exports.createCompany = async (req, res, next) => {
@@ -70,7 +71,7 @@ exports.createCompany = async (req, res, next) => {
       },
     });
 
-   return res.status(201).json({
+    return res.status(201).json({
       message: "Company created successfully",
       company,
     });
@@ -156,6 +157,75 @@ exports.updateCompany = async (req, res, next) => {
   }
 };
 
+// get Member to Company ✅
+// GET /api/company/:id/members?page=&pageSize=&filter=
+
+exports.getMember = async (req, res, next) => {
+  try {
+    const companyId = req.params.companyId;
+    const page = parseInt(req.query.page) || 0;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const filter = req.query.filter || "";
+
+    // 1️⃣ جلب الشركة + populate كل الأعضاء
+    const company = await Company.findById(companyId)
+      .populate({
+        path: "members.userId",
+        select: "fullname username email ProfileImg CoverImg active lastActive",
+      })
+      .lean();
+
+    if (!company) return next(new AppError("Company not found", 404));
+
+    // 2️⃣ تحويل بيانات الأعضاء
+    let members = company.members
+      .filter((m) => m.userId) // نتأكد إن العضو موجود
+      .map((m) => {
+        const user = m.userId;
+
+        const timeSinceLastActive = user.lastActive
+          ? Math.floor(
+              (Date.now() - new Date(user.lastActive).getTime()) / 60000
+            ) // بالدقائق
+          : null;
+
+        return {
+          id: user._id,
+          fullname: user.fullname,
+          username: user.username,
+          email: user.email,
+          profileImg: user.ProfileImg || null,
+          coverImg: user.CoverImg || null,
+          role: m.role,
+          active: user.active,
+          lastActive: user.lastActive,
+          timeSinceLastActive: formatTimeSince(timeSinceLastActive),
+          joinedAt: m.joinedAt,
+        };
+      });
+
+    // 3️⃣ الفلترة
+    if (filter) {
+      const filterLower = filter.toLowerCase();
+      members = members.filter(
+        (m) =>
+          (m.username || "").toLowerCase().includes(filterLower) ||
+          (m.email || "").toLowerCase().includes(filterLower)
+      );
+    }
+
+    // 4️⃣ الباجينيشن
+    const total = members.length;
+    const start = page * pageSize;
+    const paginatedMembers = members.slice(start, start + pageSize);
+
+    // 5️⃣ الرد
+    res.json({ data: paginatedMembers, total });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Add Member to Company ✅
 exports.addMember = async (req, res, next) => {
   try {
@@ -179,9 +249,8 @@ exports.addMember = async (req, res, next) => {
 
     company.members.push({
       userId: newMember._id,
-      username: newMember.username,
-      email: newMember.email,
-      role: role || "employee",
+      role: company.owner.equals(newMember._id) ? "owner" : "employee",
+      joinedAt: new Date(),
       permissions: permissions || [],
     });
 

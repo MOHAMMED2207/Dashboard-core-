@@ -8,12 +8,6 @@ router.get(
   AUTH_MIDDLEWARES,
   UserControllr.getUserProfile
 ); // ✅
-// router.get(
-//   "/searchUsers/:username",
-//   AUTH_MIDDLEWARES,
-//   UserControllr.searchUsers
-// );
-
 // ------------------------------------------------------------------------------------
 router.post("/user/update", AUTH_MIDDLEWARES, UserControllr.updateUser); // ✅f
 // ------------------------------------------------------------------------------------

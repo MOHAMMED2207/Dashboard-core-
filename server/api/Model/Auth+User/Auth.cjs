@@ -20,6 +20,9 @@ const userScheam = new Schema(
     link: String, // this is the link of the user
     role: { type: String, default: "User" }, // this is the role of the user
     companyId: { type: Schema.Types.ObjectId, ref: "Company" }, // <--- جديد
+    // 🔹 الحقل الجديد
+    active: { type: Boolean, default: false }, // false يعني غير نشط
+    lastActive: { type: Date, default: Date.now }, // آخر نشاط
   },
   { timestamps: true }
 );

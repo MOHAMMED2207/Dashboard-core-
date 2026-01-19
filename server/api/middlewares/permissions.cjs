@@ -270,19 +270,33 @@ exports.isMember = async (req, res, next) => {
     const company = await Company.findById(companyId);
     if (!company) return next(new AppError("Company not found", 404));
 
-    if (!company.isMember(userId))
-      return next(new AppError("Access denied", 403));
+    // 1️⃣ لو المستخدم هو Owner خلاص يسمح
+    const ownerId = company.owner?.toString();
+    if (ownerId === userId) {
+      req.company = company;
+      req.userRole = "owner";
+      return next();
+    }
 
-    const userRole = company.getUserRole(userId);
+    // 2️⃣ لو مش Owner، يتحقق هل هو عضو
+    const member = company.members.find(
+      (m) => m.userId.toString() === userId
+    );
 
+    if (!member) {
+      return next(new AppError("Access denied: not a member", 403));
+    }
+
+    // 3️⃣ يحفظ بيانات الشركة ودور المستخدم
     req.company = company;
-    req.userRole = userRole;
+    req.userRole = member.role;
 
     next();
   } catch (err) {
     next(err);
   }
 };
+
 
 // Check subscription status
 exports.checkSubscription = (requiredPlan) => {

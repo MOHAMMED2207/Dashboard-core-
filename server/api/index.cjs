@@ -14,8 +14,15 @@ const UserRouter = require("./Routes/Auth+User/UserAccount.cjs");
 const CompanyRouter = require("./Routes/All Business/Company.cjs");
 const DashboardRouter = require("./Routes/Dashboard/Dashboard.cjs");
 const AnalyticsRouter = require("./Routes/All Business/Analytics.cjs");
+const updateUserActivity = require("./middlewares/updateUserActivity.cjs");
 // const notificationRoutes = require("./Routes/Notification.cjs");
 // const dashboardRoutes = require("./Routes/Dashboard.cjs");
+
+
+
+// ✅ تحديث النشاط لازم بعد الـ auth middleware
+const authMiddleware = require("./middlewares/authentication.cjs");
+
 
 // تهيئة إعدادات البيئة
 dotenv.config();
@@ -26,17 +33,18 @@ cloudinary.config({
   api_secret: process.env.Cloudinary_API_SECRET,
 });
 
-
 const app = express();
 
 // ✅ Middlewares الأساسية أولاً
 app.use(bodyParser.json({ limit: "1gb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(cors({
-  origin: 'http://localhost:3001',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: "http://localhost:3001",
+    credentials: true,
+  })
+);
 
 // const allowedOrigins = ["http://localhost:3000", "http://localhost:3001"];
 
@@ -55,7 +63,11 @@ app.use(cors({
 //   credentials: true
 // }));
 
-   // مثال في Express.js
+
+app.use(authMiddleware); 
+app.use(updateUserActivity); 
+
+// مثال في Express.js
 // API Routes
 app.use("/api", AuthRouter); // Authentication routes
 app.use("/api", UserRouter); // User routes
@@ -86,11 +98,6 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
-
-
-
-
-
 
 // ✅ errorHandler يجب أن يكون في النهاية (بعد كل الـ routes)
 app.use(errorHandler);
