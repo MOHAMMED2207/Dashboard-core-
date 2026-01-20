@@ -1,71 +1,82 @@
-// في ملف middlewares/updateUserActivity.cjs
 const UserModel = require("../Model/Auth+User/Auth.cjs");
 const cron = require("node-cron");
 
-// ✅ Middleware: يحدث active و lastActive عند كل request
+// 🔹 وقت عدم النشاط قبل وضع المستخدم غير نشط (مثال: 30 ثانية للاختبار)
+const INACTIVITY_LIMIT_MS = 30 * 1000; // 30 ثانية
+
 const updateUserActivity = async (req, res, next) => {
   try {
-    if (!req.user) {
-      return next();
-    }
+    if (!req.user) return next();
 
     const userId = req.user._id || req.user.id;
 
-    if (!userId) {
-      return next();
-    }
+    if (!userId) return next();
 
-    await UserModel.findByIdAndUpdate(userId, {
-      lastActive: new Date(),
-      active: true,
-    });
+    const now = new Date();
 
-    console.log(
-      `✅ User ${userId} is ACTIVE at ${new Date().toLocaleTimeString()}`
+    // تحديث آخر نشاط وحالة المستخدم
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      userId,
+      {
+        lastActive: now,
+        active: true,
+      },
+      { new: true }
     );
+
+    // 🔴 بث مباشر للـ clients في نفس الشركة
+    if (global.io && updatedUser.companyId) {
+      global.io.to(`company:${updatedUser.companyId}`).emit("member:presence", {
+        userId: updatedUser._id.toString(),
+        active: true,
+        lastActive: now,
+      });
+    }
 
     next();
   } catch (err) {
-    console.error("❌ Error:", err.message);
+    console.error("❌ Error in updateUserActivity:", err);
     next();
   }
 };
 
-// ✅ Cron Job: يشتغل كل 10 ثواني (للاختبار السريع)
-cron.schedule("*/10 * * * * *", async () => {
+// ==========================
+// 🔹 Cron job: تحديث inactive
+// ==========================
+cron.schedule("*/5 * * * * *", async () => {
   try {
-    // ✅ 30 ثانية للاختبار (بدلاً من 30 دقيقة)
-    const INACTIVITY_LIMIT = 10 * 60 * 1000; // 30 ثانية
-    const inactiveThreshold = new Date(Date.now() - INACTIVITY_LIMIT);
+    const now = new Date();
+    const inactiveThreshold = new Date(now - INACTIVITY_LIMIT_MS);
 
-    const result = await UserModel.updateMany(
-      {
-        lastActive: { $lt: inactiveThreshold },
-        active: true,
-      },
-      {
-        active: false,
+    const inactiveUsers = await UserModel.find({
+      active: true,
+      lastActive: { $lt: inactiveThreshold },
+    });
+
+    if (inactiveUsers.length > 0) {
+      for (const user of inactiveUsers) {
+        user.active = false;
+        await user.save();
+
+        // 🔴 بث مباشر
+        if (global.io && user.companyId) {
+          global.io.to(`company:${user.companyId}`).emit("member:presence", {
+            userId: user._id.toString(),
+            active: false,
+            lastActive: user.lastActive,
+          });
+        }
       }
-    );
 
-    if (result.modifiedCount > 0) {
       console.log(
-        `🔴 ${
-          result.modifiedCount
-        } user(s) marked as INACTIVE at ${new Date().toLocaleTimeString()}`
-      );
-    } else {
-      console.log(
-        `⏰ Cron check at ${new Date().toLocaleTimeString()} - No inactive users`
+        `🔴 ${inactiveUsers.length} user(s) marked as INACTIVE at ${new Date().toLocaleTimeString()}`
       );
     }
   } catch (err) {
-    console.error("❌ Cron error:", err.message);
+    console.error("❌ Cron error:", err);
   }
 });
 
-console.log(
-  "⏰ Cron job started - checking every 10 seconds (30 sec inactivity limit)"
-);
+console.log("⏰ Cron job started - checking every 5 seconds");
 
 module.exports = updateUserActivity;

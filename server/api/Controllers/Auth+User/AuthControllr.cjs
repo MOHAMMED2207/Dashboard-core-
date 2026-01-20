@@ -42,10 +42,6 @@ exports.register = async (req, res, next) => {
       ...data,
       Password: hashedPassword,
       role: "employee",
-      isActive: true,
-      active: true, // ✅ نشط عند التسجيل
-      lastActive: new Date(), // ✅ آخر نشاط
-      joinedAt: new Date(),
     });
 
     // Find or create company
@@ -131,8 +127,7 @@ exports.register = async (req, res, next) => {
         username: user.username,
         email: user.email,
         role: user.role,
-        active: user.active, // ✅ حالة النشاط
-        lastActive: user.lastActive, // ✅ آخر نشاط
+
         company: {
           id: company._id,
           name: company.name,
@@ -202,6 +197,16 @@ exports.login = async (req, res, next) => {
     user.lastActive = new Date();
     await user.save();
 
+    const io = req.app.get("io");
+
+if (company?._id) {
+  io.to(`company:${company._id}`).emit("member:status-updated", {
+    userId: user._id,
+    active: true,
+    lastActive: user.lastActive,
+  });
+}
+
     // Response
     res.status(200).json({
       message: "Login successful",
@@ -241,8 +246,18 @@ exports.logout = async (req, res, next) => {
     const company = await Company.findOne({ "members.userId": user._id });
 
     // ✅ تعطيل النشاط عند الخروج (اختياري)
-    // user.active = false;
-    // await user.save();
+    user.active = false;
+    await user.save();
+
+    const io = req.app.get("io");
+
+if (company?._id) {
+  io.to(`company:${company._id}`).emit("member:status-updated", {
+    userId: user._id,
+    active: false,
+    lastActive: user.lastActive,
+  });
+}
 
     // مسح الكوكي
     res.clearCookie("jwt", {
